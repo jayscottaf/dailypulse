@@ -3,12 +3,11 @@ import { getDb } from "@/db/client";
 import { dailyReports, reportVideos, videos } from "@/db/schema";
 import { generateDailyReportMarkdown } from "@/lib/ai";
 import { logError } from "@/lib/errors";
-import { summarizeUnsummarizedRecentVideos, videosForReport } from "@/lib/ingestion";
+import { videosForReport } from "@/lib/ingestion";
 import { createReportSlug, todayIso } from "@/lib/slug";
 
 export async function generateDailyReport(reportDate = todayIso()) {
   const db = getDb();
-  await summarizeUnsummarizedRecentVideos(false, 4);
   const reportInput = await videosForReport(72);
 
   try {

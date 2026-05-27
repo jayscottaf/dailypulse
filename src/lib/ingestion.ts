@@ -29,7 +29,8 @@ export async function runIngestion() {
       .where(and(eq(ingestionRuns.status, "success"), isNull(ingestionRuns.errorMessage)))
       .orderBy(desc(ingestionRuns.finishedAt))
       .limit(1);
-    const since = fallbackSinceDate(lastSuccess?.finishedAt);
+    const existingVideos = await db.select({ id: videos.id }).from(videos).limit(1);
+    const since = existingVideos.length > 0 ? fallbackSinceDate(lastSuccess?.finishedAt) : fallbackSinceDate();
     const activeSources = await db.select().from(sources).where(eq(sources.isActive, true));
 
     for (const source of activeSources) {

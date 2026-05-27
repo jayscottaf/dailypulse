@@ -36,6 +36,29 @@ function parseJsonObject<T>(text: string): T {
   return JSON.parse(jsonText) as T;
 }
 
+function asStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item)).filter(Boolean);
+}
+
+function normalizeVideoSummaryPayload(payload: Record<string, unknown>) {
+  return {
+    conciseSummary: String(payload.conciseSummary ?? payload.concise_summary ?? payload.summary ?? ""),
+    keyClaims: asStringArray(payload.keyClaims ?? payload.key_claims ?? payload.keyPoints ?? payload.key_points),
+    importantDataPoints: asStringArray(
+      payload.importantDataPoints ?? payload.important_data_points ?? payload.dataPoints ?? payload.data_points,
+    ),
+    quotesOrParaphrases: asStringArray(
+      payload.quotesOrParaphrases ?? payload.quotes_or_paraphrases ?? payload.quotes ?? payload.paraphrases,
+    ),
+    tags: asStringArray(payload.tags ?? payload.suggestedTags ?? payload.suggested_tags),
+    relevanceScoreForJason: Number(
+      payload.relevanceScoreForJason ?? payload.relevance_score_for_jason ?? payload.relevanceScore ?? 50,
+    ),
+    actionSignals: asStringArray(payload.actionSignals ?? payload.action_signals ?? payload.actions),
+  };
+}
+
 export function contentHash(text: string) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
@@ -79,7 +102,7 @@ export async function summarizeVideo(video: Video, source: Source): Promise<Vide
   });
 
   const text = response.output_text;
-  return videoSummaryPayloadSchema.parse(parseJsonObject(text));
+  return videoSummaryPayloadSchema.parse(normalizeVideoSummaryPayload(parseJsonObject(text)));
 }
 
 export type ReportInputVideo = {

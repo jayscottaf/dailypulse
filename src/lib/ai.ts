@@ -29,6 +29,13 @@ export const videoSummaryPayloadSchema = z.object({
 
 export type VideoSummaryPayload = z.infer<typeof videoSummaryPayloadSchema>;
 
+function parseJsonObject<T>(text: string): T {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const jsonText = fenced?.[1]?.trim() ?? trimmed;
+  return JSON.parse(jsonText) as T;
+}
+
 export function contentHash(text: string) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
@@ -72,7 +79,7 @@ export async function summarizeVideo(video: Video, source: Source): Promise<Vide
   });
 
   const text = response.output_text;
-  return videoSummaryPayloadSchema.parse(JSON.parse(text));
+  return videoSummaryPayloadSchema.parse(parseJsonObject(text));
 }
 
 export type ReportInputVideo = {
@@ -238,7 +245,7 @@ No high-signal new source video found in this layer during this run.
     ],
   });
 
-  const parsed = JSON.parse(response.output_text) as GeneratedReportPayload;
+  const parsed = parseJsonObject<GeneratedReportPayload>(response.output_text);
   return {
     title: parsed.title,
     summaryPreview: parsed.summaryPreview,

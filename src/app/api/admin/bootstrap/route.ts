@@ -1,5 +1,5 @@
 import { requireAdminSecret } from "@/lib/auth";
-import { runIngestion } from "@/lib/ingestion";
+import { bootstrapDatabase } from "@/lib/bootstrap-db";
 
 export const maxDuration = 60;
 
@@ -7,6 +7,6 @@ export async function POST(request: Request) {
   const unauthorized = requireAdminSecret(request);
   if (unauthorized) return unauthorized;
 
-  const result = await runIngestion();
-  return Response.json(result);
+  const result = await bootstrapDatabase();
+  return Response.json({ ok: true, ...result });
 }

@@ -4,6 +4,8 @@ import { dailyReports } from "@/db/schema";
 import { requireAdminSecret } from "@/lib/auth";
 import { sendReportEmail } from "@/lib/email";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const unauthorized = requireAdminSecret(request);
   if (unauthorized) return unauthorized;

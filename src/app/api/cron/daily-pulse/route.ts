@@ -3,6 +3,8 @@ import { sendReportEmail } from "@/lib/email";
 import { runIngestion } from "@/lib/ingestion";
 import { generateDailyReport } from "@/lib/reports";
 
+export const maxDuration = 60;
+
 export async function GET(request: Request) {
   if (!validateCronSecret(request.headers.get("authorization"))) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });

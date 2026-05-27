@@ -150,6 +150,80 @@ export async function generateDailyReportMarkdown(
   reportDate: string,
   videos: ReportInputVideo[],
 ): Promise<GeneratedReportPayload> {
+  if (videos.length === 0) {
+    const formattedDate = formatReportDate(reportDate);
+    const fullMarkdown = `# Daily Intelligence Briefing - ${formattedDate}
+
+## THE MACRO FINANCIAL LAYER
+
+### Highlights & Breakdown
+
+No high-signal new source video found in this layer during this run.
+
+### How It Affects Me
+
+- Do not treat this run as a market update.
+- Wait for fresh source material before changing investing, real estate, or tax assumptions.
+- Keep the next review focused on liquidity, bond yields, margins, and cash-flow compounders once new source videos are available.
+
+## THE DEEP-TECH & AI AUTOMATION LAYER
+
+### Highlights & Breakdown
+
+No high-signal new source video found in this layer during this run.
+
+### How It Affects Me
+
+- Do not infer new AI platform, model, or automation opportunities from this report.
+- Keep current AI business execution priorities stable until fresh source material is ingested.
+- The next high-value action is improving source coverage, transcripts, and ingestion reliability.
+
+## THE TESLA OWNERSHIP & SOFTWARE LAYER
+
+### Highlights & Breakdown
+
+No high-signal new source video found in this layer during this run.
+
+### How It Affects Me
+
+- No new Tesla software, FSD, ownership, accessory, battery, or road-trip recommendation is supported by source data in this run.
+- Keep current vehicle settings and ownership habits unchanged until new source videos are ingested.
+
+## JASON PERSONAL PULSE
+
+### Health / Layover Fuel
+
+- No fresh source-driven health or travel fuel signal in this run.
+
+### Money / Real Estate / Tax
+
+- No fresh source-driven investing, real estate, or tax signal in this run.
+
+### Projects / AI Business Execution
+
+- Priority is operational: confirm YouTube channel IDs, RSS ingestion, and transcript coverage so future reports are source-backed.
+
+### Vehicle / Tesla Ownership
+
+- No fresh source-backed Tesla action today.
+
+### One Priority Today
+
+- Finish source setup and run ingestion again before relying on this dashboard for decisions.`;
+
+    return {
+      title: `Jason Mergl Daily Intelligence Briefing - ${formattedDate}`,
+      summaryPreview:
+        "No fresh source-backed videos were available for this run. Treat this as an operational setup report, not a market, AI, or Tesla update.",
+      fullMarkdown,
+      structuredJson: {
+        sourceStatus: "no_source_videos",
+        layers: ["macro_financial", "deep_tech_ai", "tesla_ownership"],
+      },
+      tags: ["setup", "source coverage", "ingestion"],
+    };
+  }
+
   const client = getOpenAI();
   const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
   const response = await client.responses.create({

@@ -17,8 +17,8 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Joseph Carlson / The Joseph Carlson Show",
     layer: "macro_financial",
-    youtubeChannelId: null,
-    youtubeHandle: "@TheJosephCarlsonShow",
+    youtubeChannelId: "UCbta0n8i6Rljh0obO7HzG9A",
+    youtubeHandle: "@josephcarlsonshow",
     rssUrl: null,
     focusDescription:
       "Corporate fundamental analysis, cash-flow compounders, net income margins, portfolio building.",
@@ -27,7 +27,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Sven Carlin / Sven Carlin - Value Investing",
     layer: "macro_financial",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCrTTBSUr0zhPU56UQljag5A",
     youtubeHandle: "@Value-Investing",
     rssUrl: null,
     focusDescription:
@@ -37,7 +37,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Alfonso Peccatiello / The Macro Compass",
     layer: "macro_financial",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCFk1qCySNf2FIzIidVVW81A",
     youtubeHandle: "@TheMacroCompass",
     rssUrl: null,
     focusDescription:
@@ -47,7 +47,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Patrick Boyle / Patrick Boyle on Finance",
     layer: "macro_financial",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCASM0cgfkJxQ1ICmRilfHLw",
     youtubeHandle: "@PBoyle",
     rssUrl: null,
     focusDescription:
@@ -57,7 +57,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "AI Explained",
     layer: "deep_tech_ai",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCNJ1Ymd5yFuUPtn21xtRbbw",
     youtubeHandle: "@aiexplained-official",
     rssUrl: null,
     focusDescription:
@@ -67,7 +67,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "The AI Daily Brief / Nathaniel Whittemore",
     layer: "deep_tech_ai",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCKelCK4ZaO6HeEI1KQjqzWA",
     youtubeHandle: "@AIDailyBrief",
     rssUrl: null,
     focusDescription:
@@ -77,7 +77,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Matt Wolfe",
     layer: "deep_tech_ai",
-    youtubeChannelId: null,
+    youtubeChannelId: "UChpleBmo18P08aKCIgti38g",
     youtubeHandle: "@mreflow",
     rssUrl: null,
     focusDescription:
@@ -87,7 +87,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "AI Revolution / @airevolutionx",
     layer: "deep_tech_ai",
-    youtubeChannelId: null,
+    youtubeChannelId: "UC5l7RouTQ60oUjLjt1Nh-UQ",
     youtubeHandle: "@airevolutionx",
     rssUrl: null,
     focusDescription:
@@ -97,7 +97,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "ColdFusion",
     layer: "deep_tech_ai",
-    youtubeChannelId: null,
+    youtubeChannelId: "UC4QZ_LsYcvcq7qOsOhpAX4A",
     youtubeHandle: "@ColdFusion",
     rssUrl: null,
     focusDescription:
@@ -107,7 +107,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Wes Roth",
     layer: "deep_tech_ai",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCqcbQf6yw5KzRoDDcZ_wBSw",
     youtubeHandle: "@WesRoth",
     rssUrl: null,
     focusDescription:
@@ -117,7 +117,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Ryan Shaw",
     layer: "tesla_ownership",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCfv7-e6_6ZhvDL9-7Yw5OVA",
     youtubeHandle: "@ryanshawtech",
     rssUrl: null,
     focusDescription:
@@ -127,7 +127,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Vegas Carmen",
     layer: "tesla_ownership",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCzy15HY8Z0DgeGRZIk7LzLQ",
     youtubeHandle: "@VegasCarmen",
     rssUrl: null,
     focusDescription:
@@ -137,8 +137,8 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Iowa Tesla Guy",
     layer: "tesla_ownership",
-    youtubeChannelId: null,
-    youtubeHandle: "@IowaTeslaGuy",
+    youtubeChannelId: "UCFOMi555hn7mUDdQYBKQQXA",
+    youtubeHandle: "@iowatesla",
     rssUrl: null,
     focusDescription:
       "FSD stress tests, seasonal battery/range performance, unedited autonomous driving reality checks.",
@@ -147,7 +147,7 @@ export const SOURCE_ROSTER: SeedSource[] = [
   {
     displayName: "Gjeebs",
     layer: "tesla_ownership",
-    youtubeChannelId: null,
+    youtubeChannelId: "UCC1Mi4fVXKETdFGDlW7rC3w",
     youtubeHandle: "@Gjeebs",
     rssUrl: null,
     focusDescription:

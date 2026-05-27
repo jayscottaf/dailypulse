@@ -15,7 +15,12 @@ function fallbackSinceDate(lastSuccess?: Date | null) {
   return since;
 }
 
-export async function runIngestion() {
+type IngestionOptions = {
+  summarize?: boolean;
+  summaryLimit?: number;
+};
+
+export async function runIngestion({ summarize = true, summaryLimit = 4 }: IngestionOptions = {}) {
   const db = getDb();
   const [run] = await db.insert(ingestionRuns).values({ status: "running" }).returning();
   let videosFound = 0;
@@ -91,7 +96,9 @@ export async function runIngestion() {
       }
     }
 
-    await summarizeUnsummarizedRecentVideos();
+    if (summarize) {
+      await summarizeUnsummarizedRecentVideos(false, summaryLimit);
+    }
 
     await db
       .update(ingestionRuns)
@@ -122,7 +129,7 @@ export async function runIngestion() {
   }
 }
 
-export async function summarizeUnsummarizedRecentVideos(force = false) {
+export async function summarizeUnsummarizedRecentVideos(force = false, limit = 8) {
   const db = getDb();
   const since = new Date();
   since.setDate(since.getDate() - 7);
@@ -132,7 +139,9 @@ export async function summarizeUnsummarizedRecentVideos(force = false) {
     .from(videos)
     .innerJoin(sources, eq(videos.sourceId, sources.id))
     .leftJoin(videoSummaries, eq(videoSummaries.videoId, videos.id))
-    .where(force ? gte(videos.publishedAt, since) : and(gte(videos.publishedAt, since), isNull(videoSummaries.id)));
+    .where(force ? gte(videos.publishedAt, since) : and(gte(videos.publishedAt, since), isNull(videoSummaries.id)))
+    .orderBy(desc(videos.publishedAt))
+    .limit(limit);
 
   const summarized: string[] = [];
 

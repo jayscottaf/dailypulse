@@ -11,8 +11,85 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { dailyReports, reportVideos, sources, videos } from "@/db/schema";
+import type { Source, Video } from "@/db/schema";
+import { parseReportStructure, type ReportStructure } from "@/lib/report-structure";
 import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
+
+type SourceVideo = {
+  video: Video;
+  source: Source;
+};
+
+function sectionId(title: string) {
+  return title.toLowerCase().replaceAll(" ", "-");
+}
+
+function SourceChips({
+  sourceVideoIds,
+  sourceMap,
+}: {
+  sourceVideoIds: string[];
+  sourceMap: Map<string, SourceVideo>;
+}) {
+  const linkedVideos = [...new Set(sourceVideoIds)]
+    .map((id) => sourceMap.get(id))
+    .filter((row): row is SourceVideo => Boolean(row));
+
+  if (linkedVideos.length === 0) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Sources</span>
+      {linkedVideos.map(({ video, source }) => (
+        <a
+          key={video.id}
+          href={video.url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs font-medium text-muted-foreground transition hover:border-accent/60 hover:text-foreground"
+          title={`${source.displayName}: ${video.title}`}
+        >
+          <ExternalLink className="h-3 w-3 shrink-0" />
+          <span className="truncate">{source.displayName.split("/")[0].trim()}: {video.title}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function StructuredReport({
+  structure,
+  sourceMap,
+}: {
+  structure: ReportStructure;
+  sourceMap: Map<string, SourceVideo>;
+}) {
+  return (
+    <div className="space-y-9">
+      {structure.sections.map((section) => (
+        <section key={section.title} id={sectionId(section.title)} className="scroll-mt-24">
+          <h2>{section.title}</h2>
+          <div className="space-y-6">
+            {section.subsections.map((subsection) => (
+              <div key={`${section.title}-${subsection.title}`}>
+                <h3>{subsection.title}</h3>
+                <ul className="space-y-4">
+                  {subsection.items.map((item, index) => (
+                    <li key={`${subsection.title}-${index}`}>
+                      <span>{item.text}</span>
+                      <SourceChips sourceVideoIds={item.sourceVideoIds} sourceMap={sourceMap} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 export default async function DailyReportPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -28,6 +105,8 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
       .innerJoin(videos, eq(reportVideos.videoId, videos.id))
       .innerJoin(sources, eq(videos.sourceId, sources.id))
       .where(eq(reportVideos.reportId, report.id));
+    const structuredReport = parseReportStructure(report.structuredJson);
+    const sourceMap = new Map(usedVideos.map((row) => [row.video.id, row]));
 
     return (
       <AppShell>
@@ -52,7 +131,7 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
 
           <nav className="grid gap-2 sm:grid-cols-4">
             {["THE MACRO FINANCIAL LAYER", "THE DEEP-TECH & AI AUTOMATION LAYER", "THE TESLA OWNERSHIP & SOFTWARE LAYER", "JASON PERSONAL PULSE"].map((section) => (
-              <a key={section} href={`#${section.toLowerCase().replaceAll(" ", "-")}`} className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+              <a key={section} href={`#${sectionId(section)}`} className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
                 {section}
               </a>
             ))}
@@ -61,14 +140,18 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
           <Card>
             <CardContent className="p-5 sm:p-8">
               <div className="prose-pulse max-w-none">
-                <ReactMarkdown
-                  components={{
-                    h1: ({ children }) => <h1 id={String(children).toLowerCase().replaceAll(" ", "-")}>{children}</h1>,
-                    h2: ({ children }) => <h2 id={String(children).toLowerCase().replaceAll(" ", "-")}>{children}</h2>,
-                  }}
-                >
-                  {report.fullMarkdown}
-                </ReactMarkdown>
+                {structuredReport ? (
+                  <StructuredReport structure={structuredReport} sourceMap={sourceMap} />
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => <h1 id={sectionId(String(children))}>{children}</h1>,
+                      h2: ({ children }) => <h2 id={sectionId(String(children))}>{children}</h2>,
+                    }}
+                  >
+                    {report.fullMarkdown}
+                  </ReactMarkdown>
+                )}
               </div>
             </CardContent>
           </Card>

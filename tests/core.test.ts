@@ -4,6 +4,8 @@ import { filterNewVideos } from "../src/lib/rss";
 import { normalizeSearchQuery } from "../src/lib/search";
 import { createReportSlug } from "../src/lib/slug";
 import { validateCronSecret } from "../src/lib/auth";
+import { parseReportStructure } from "../src/lib/report-structure";
+import { generateDailyReportMarkdown } from "../src/lib/ai";
 
 describe("core utilities", () => {
   it("creates stable report slugs", () => {
@@ -58,5 +60,31 @@ describe("core utilities", () => {
     expect(payload.subject).toBe("Jason Daily Pulse — May 27, 2026");
     expect(payload.reportUrl).toBe("https://daily.example.com/daily-pulse/daily-pulse-2026-05-27");
     vi.unstubAllEnvs();
+  });
+
+  it("normalizes structured report source ids", () => {
+    const parsed = parseReportStructure({
+      sections: [
+        {
+          title: "THE MACRO FINANCIAL LAYER",
+          subsections: [
+            {
+              title: "Highlights & Breakdown",
+              items: [{ text: "A source-backed point.", source_video_ids: ["video-1"] }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(parsed?.sections[0].subsections[0].items[0].sourceVideoIds).toEqual(["video-1"]);
+  });
+
+  it("builds structured no-source report fallback", async () => {
+    const report = await generateDailyReportMarkdown("2026-05-27", []);
+    const parsed = parseReportStructure(report.structuredJson);
+
+    expect(parsed?.sections).toHaveLength(4);
+    expect(parsed?.sections[0].subsections[0].items[0].sourceVideoIds).toEqual([]);
   });
 });

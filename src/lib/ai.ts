@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import OpenAI from "openai";
 import { z } from "zod";
 import type { Source, Video, VideoSummary } from "@/db/schema";
+import { parseReportStructure } from "@/lib/report-structure";
 import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
 
@@ -121,6 +122,7 @@ export type GeneratedReportPayload = {
 
 export function buildDailyReportPrompt(reportDate: string, videos: ReportInputVideo[]) {
   const grouped = videos.map(({ video, source, summary }) => ({
+    sourceVideoId: video.id,
     layer: LAYERS[source.layer],
     source: source.displayName,
     focus: source.focusDescription,
@@ -168,9 +170,34 @@ Return JSON only with:
   "title": string,
   "summaryPreview": string,
   "fullMarkdown": string,
-  "structuredJson": object,
+  "structuredJson": {
+    "version": 1,
+    "sections": [
+      {
+        "title": string,
+        "subsections": [
+          {
+            "title": string,
+            "items": [
+              {
+                "text": string,
+                "sourceVideoIds": string[]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "tags": string[]
 }
+
+Rules for structuredJson:
+- Use only sourceVideoId values provided in Source summaries.
+- Attach sourceVideoIds to an item only when the listed videos directly support that item.
+- Do not attach sourceVideoIds to generic Jason Personal Pulse guidance unless a source directly supports it.
+- Keep the exact top-level section names and subsection names from the required structure.
+- Put each bullet or paragraph as one item.text.
 
 Source summaries:
 ${JSON.stringify(grouped, null, 2)}`;
@@ -247,8 +274,104 @@ No high-signal new source video found in this layer during this run.
         "No fresh source-backed videos were available for this run. Treat this as an operational setup report, not a market, AI, or Tesla update.",
       fullMarkdown,
       structuredJson: {
+        version: 1,
         sourceStatus: "no_source_videos",
-        layers: ["macro_financial", "deep_tech_ai", "tesla_ownership"],
+        sections: [
+          {
+            title: "THE MACRO FINANCIAL LAYER",
+            subsections: [
+              {
+                title: "Highlights & Breakdown",
+                items: [{ text: "No high-signal new source video found in this layer during this run.", sourceVideoIds: [] }],
+              },
+              {
+                title: "How It Affects Me",
+                items: [
+                  { text: "Do not treat this run as a market update.", sourceVideoIds: [] },
+                  {
+                    text: "Wait for fresh source material before changing investing, real estate, or tax assumptions.",
+                    sourceVideoIds: [],
+                  },
+                  {
+                    text: "Keep the next review focused on liquidity, bond yields, margins, and cash-flow compounders once new source videos are available.",
+                    sourceVideoIds: [],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            title: "THE DEEP-TECH & AI AUTOMATION LAYER",
+            subsections: [
+              {
+                title: "Highlights & Breakdown",
+                items: [{ text: "No high-signal new source video found in this layer during this run.", sourceVideoIds: [] }],
+              },
+              {
+                title: "How It Affects Me",
+                items: [
+                  { text: "Do not infer new AI platform, model, or automation opportunities from this report.", sourceVideoIds: [] },
+                  {
+                    text: "Keep current AI business execution priorities stable until fresh source material is ingested.",
+                    sourceVideoIds: [],
+                  },
+                  {
+                    text: "The next high-value action is improving source coverage, transcripts, and ingestion reliability.",
+                    sourceVideoIds: [],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            title: "THE TESLA OWNERSHIP & SOFTWARE LAYER",
+            subsections: [
+              {
+                title: "Highlights & Breakdown",
+                items: [{ text: "No high-signal new source video found in this layer during this run.", sourceVideoIds: [] }],
+              },
+              {
+                title: "How It Affects Me",
+                items: [
+                  {
+                    text: "No new Tesla software, FSD, ownership, accessory, battery, or road-trip recommendation is supported by source data in this run.",
+                    sourceVideoIds: [],
+                  },
+                  {
+                    text: "Keep current vehicle settings and ownership habits unchanged until new source videos are ingested.",
+                    sourceVideoIds: [],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            title: "JASON PERSONAL PULSE",
+            subsections: [
+              { title: "Health / Layover Fuel", items: [{ text: "No fresh source-driven health or travel fuel signal in this run.", sourceVideoIds: [] }] },
+              { title: "Money / Real Estate / Tax", items: [{ text: "No fresh source-driven investing, real estate, or tax signal in this run.", sourceVideoIds: [] }] },
+              {
+                title: "Projects / AI Business Execution",
+                items: [
+                  {
+                    text: "Priority is operational: confirm YouTube channel IDs, RSS ingestion, and transcript coverage so future reports are source-backed.",
+                    sourceVideoIds: [],
+                  },
+                ],
+              },
+              { title: "Vehicle / Tesla Ownership", items: [{ text: "No fresh source-backed Tesla action today.", sourceVideoIds: [] }] },
+              {
+                title: "One Priority Today",
+                items: [
+                  {
+                    text: "Finish source setup and run ingestion again before relying on this dashboard for decisions.",
+                    sourceVideoIds: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
       },
       tags: ["setup", "source coverage", "ingestion"],
     };
@@ -273,7 +396,7 @@ No high-signal new source video found in this layer during this run.
     title: parsed.title,
     summaryPreview: parsed.summaryPreview,
     fullMarkdown: parsed.fullMarkdown,
-    structuredJson: parsed.structuredJson ?? {},
+    structuredJson: parseReportStructure(parsed.structuredJson) ?? parsed.structuredJson ?? {},
     tags: parsed.tags ?? [],
   };
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { eq } from "drizzle-orm";
 import { ExternalLink } from "lucide-react";
@@ -276,6 +276,10 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
       </AppShell>
     );
   } catch (error) {
+    // Let Next's control-flow signals (notFound / redirect) propagate instead of
+    // being swallowed and rendered as a misleading "Setup needed" panel. A truly
+    // missing report now renders a real 404.
+    unstable_rethrow(error);
     return (
       <AppShell>
         <SetupPanel error={error} />

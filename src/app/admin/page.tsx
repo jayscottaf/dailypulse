@@ -1,19 +1,34 @@
-import { Activity, AlertTriangle, Database, Mail, Newspaper, Play, Search, Video } from "lucide-react";
+import { Activity, AlertTriangle, Database, Newspaper, Video } from "lucide-react";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
+import { PipelineControls } from "@/components/app/pipeline-controls";
 import { SetupPanel } from "@/components/app/setup-panel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminStats } from "@/lib/admin";
 import { isAdminSession } from "@/lib/page-auth";
 import { formatReportDate } from "@/lib/slug";
-import {
-  generateReportAction,
-  rebuildSearchAction,
-  runIngestionAction,
-  sendTodayEmailAction,
-} from "./control-actions";
+
+// Error messages are often raw zod issue arrays; render them as readable text.
+function humanizeError(message: string) {
+  try {
+    const parsed = JSON.parse(message);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((issue) => {
+          if (issue && typeof issue === "object" && "message" in issue) {
+            const path = Array.isArray(issue.path) && issue.path.length ? ` (${issue.path.join(".")})` : "";
+            return `${issue.message}${path}`;
+          }
+          return String(issue);
+        })
+        .join("; ");
+    }
+  } catch {
+    // not JSON — fall through and return the original message
+  }
+  return message;
+}
 
 function Metric({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon: typeof Activity }) {
   return (
@@ -64,19 +79,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 <CardTitle>Pipeline controls</CardTitle>
                 <CardDescription>Each action runs server-side with stored secrets only.</CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
-                <form action={runIngestionAction}>
-                  <Button className="w-full" type="submit"><Play /> Run ingestion now</Button>
-                </form>
-                <form action={generateReportAction}>
-                  <Button className="w-full" type="submit" variant="secondary"><Newspaper /> Generate today&apos;s report</Button>
-                </form>
-                <form action={sendTodayEmailAction}>
-                  <Button className="w-full" type="submit" variant="outline"><Mail /> Send today&apos;s email</Button>
-                </form>
-                <form action={rebuildSearchAction}>
-                  <Button className="w-full" type="submit" variant="outline"><Search /> Rebuild search index</Button>
-                </form>
+              <CardContent>
+                <PipelineControls />
               </CardContent>
             </Card>
 
@@ -112,7 +116,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 stats.recentErrors.map((error) => (
                   <div key={error.id} className="rounded-md border border-border bg-muted/40 p-3 text-sm">
                     <p className="font-medium">{error.context}</p>
-                    <p className="text-muted-foreground">{error.message}</p>
+                    <p className="text-muted-foreground">{humanizeError(error.message)}</p>
                     <p className="mt-1 font-mono text-xs text-muted-foreground">{error.createdAt.toLocaleString()}</p>
                   </div>
                 ))

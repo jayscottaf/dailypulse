@@ -19,6 +19,40 @@ function getOpenAI() {
   return openai;
 }
 
+function openaiModel() {
+  return process.env.OPENAI_MODEL || "gpt-4.1-mini";
+}
+
+// Force valid JSON output (json_object mode) so responses can't come back wrapped
+// in markdown fences or prose — the cause of the recurring "is not valid JSON" /
+// missing-field generation errors seen in the admin error log.
+async function requestJson(system: string, user: string): Promise<string> {
+  const client = getOpenAI();
+  const response = await client.responses.create({
+    model: openaiModel(),
+    input: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    text: { format: { type: "json_object" } },
+  });
+  return response.output_text;
+}
+
+// Retry transient model/parse failures before giving up, so a single malformed
+// response doesn't sink an entire ingestion or report run.
+async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 export const videoSummaryPayloadSchema = z.object({
   conciseSummary: z.string(),
   keyClaims: z.array(z.string()).default([]),
@@ -61,6 +95,18 @@ function normalizeVideoSummaryPayload(payload: Record<string, unknown>) {
   };
 }
 
+// Defensive against the model returning snake_case / alternate field names so a
+// minor key mismatch never throws away an otherwise-valid report.
+function normalizeReportPayload(payload: Record<string, unknown>) {
+  return {
+    title: String(payload.title ?? ""),
+    summaryPreview: String(payload.summaryPreview ?? payload.summary_preview ?? payload.preview ?? ""),
+    fullMarkdown: String(payload.fullMarkdown ?? payload.full_markdown ?? payload.markdown ?? ""),
+    structuredJson: (payload.structuredJson ?? payload.structured_json ?? {}) as Record<string, unknown>,
+    tags: asStringArray(payload.tags ?? payload.suggestedTags ?? payload.suggested_tags),
+  };
+}
+
 export function contentHash(text: string) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
@@ -83,28 +129,16 @@ export function buildVideoSummaryInput(video: Video, source: Source) {
   ].join("\n\n");
 }
 
+const VIDEO_SUMMARY_SYSTEM_PROMPT =
+  "You are Jason Mergl's private intelligence analyst. Return strict JSON only. Extract 5-10 key points, data points, investing implications, AI execution implications, Tesla ownership implications if relevant, confidence based on transcript quality, suggested tags, and direct action signals. Be concise and high-signal.";
+
 export async function summarizeVideo(video: Video, source: Source): Promise<VideoSummaryPayload> {
   const input = buildVideoSummaryInput(video, source);
-  const client = getOpenAI();
-  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
-  const response = await client.responses.create({
-    model,
-    input: [
-      {
-        role: "system",
-        content:
-          "You are Jason Mergl's private intelligence analyst. Return strict JSON only. Extract 5-10 key points, data points, investing implications, AI execution implications, Tesla ownership implications if relevant, confidence based on transcript quality, suggested tags, and direct action signals. Be concise and high-signal.",
-      },
-      {
-        role: "user",
-        content: input,
-      },
-    ],
+  return withRetry(async () => {
+    const text = await requestJson(VIDEO_SUMMARY_SYSTEM_PROMPT, input);
+    return videoSummaryPayloadSchema.parse(normalizeVideoSummaryPayload(parseJsonObject(text)));
   });
-
-  const text = response.output_text;
-  return videoSummaryPayloadSchema.parse(normalizeVideoSummaryPayload(parseJsonObject(text)));
 }
 
 export type ReportInputVideo = {
@@ -399,26 +433,23 @@ No high-signal new source video found in this layer during this run.
     };
   }
 
-  const client = getOpenAI();
-  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-  const response = await client.responses.create({
-    model,
-    input: [
-      {
-        role: "system",
-        content:
-          "You produce a private daily intelligence briefing for Jason Mergl. Return strict JSON only. Prioritize signal over completeness and avoid conversational wrap-up.",
-      },
-      { role: "user", content: buildDailyReportPrompt(reportDate, videos, feedbackProfile) },
-    ],
+  const system =
+    "You produce a private daily intelligence briefing for Jason Mergl. Return strict JSON only. Prioritize signal over completeness and avoid conversational wrap-up.";
+  const prompt = buildDailyReportPrompt(reportDate, videos, feedbackProfile);
+
+  const parsed = await withRetry(async () => {
+    const payload = normalizeReportPayload(parseJsonObject<Record<string, unknown>>(await requestJson(system, prompt)));
+    if (!payload.title.trim() || !payload.fullMarkdown.trim()) {
+      throw new Error("Model returned an incomplete report payload.");
+    }
+    return payload;
   });
 
-  const parsed = parseJsonObject<GeneratedReportPayload>(response.output_text);
   return {
     title: parsed.title,
     summaryPreview: parsed.summaryPreview,
     fullMarkdown: parsed.fullMarkdown,
     structuredJson: parseReportStructure(parsed.structuredJson) ?? parsed.structuredJson ?? {},
-    tags: parsed.tags ?? [],
+    tags: parsed.tags,
   };
 }

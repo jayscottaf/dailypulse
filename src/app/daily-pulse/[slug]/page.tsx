@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { eq } from "drizzle-orm";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ThumbsDown, ThumbsUp } from "lucide-react";
 import { CopyReportButton } from "@/components/app/copy-report-button";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
@@ -12,9 +12,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { dailyReports, reportVideos, sources, videos } from "@/db/schema";
 import type { Source, Video } from "@/db/schema";
+import { feedbackFingerprint, feedbackForReport, type FeedbackVote } from "@/lib/feedback";
+import { isAdminSession } from "@/lib/page-auth";
 import { parseReportStructure, type ReportStructure } from "@/lib/report-structure";
 import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
+import { saveReportFeedback } from "./actions";
 
 type SourceVideo = {
   video: Video;
@@ -58,12 +61,75 @@ function SourceChips({
   );
 }
 
+function FeedbackControls({
+  selectedVote,
+  reportId,
+  sectionTitle,
+  subsectionTitle,
+  itemIndex,
+  itemText,
+  sourceVideoIds,
+  tags,
+}: {
+  selectedVote?: FeedbackVote;
+  reportId: string;
+  sectionTitle: string;
+  subsectionTitle: string;
+  itemIndex: number;
+  itemText: string;
+  sourceVideoIds: string[];
+  tags: string[];
+}) {
+  const buttonBase =
+    "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition hover:border-accent/60 hover:text-foreground";
+  const selected = "border-accent/80 bg-accent/15 text-accent";
+
+  return (
+    <form action={saveReportFeedback} className="mt-2 flex items-center gap-1">
+      <input type="hidden" name="reportId" value={reportId} />
+      <input type="hidden" name="sectionTitle" value={sectionTitle} />
+      <input type="hidden" name="subsectionTitle" value={subsectionTitle} />
+      <input type="hidden" name="itemIndex" value={itemIndex} />
+      <input type="hidden" name="itemText" value={itemText} />
+      <input type="hidden" name="sourceVideoIds" value={JSON.stringify(sourceVideoIds)} />
+      <input type="hidden" name="tags" value={JSON.stringify(tags)} />
+      <span className="mr-1 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Tune</span>
+      <button
+        type="submit"
+        name="vote"
+        value="up"
+        aria-label="Show more items like this"
+        className={`${buttonBase} ${selectedVote === "up" ? selected : ""}`}
+      >
+        <ThumbsUp className="h-4 w-4" />
+      </button>
+      <button
+        type="submit"
+        name="vote"
+        value="down"
+        aria-label="Show fewer items like this"
+        className={`${buttonBase} ${selectedVote === "down" ? selected : ""}`}
+      >
+        <ThumbsDown className="h-4 w-4" />
+      </button>
+    </form>
+  );
+}
+
 function StructuredReport({
   structure,
   sourceMap,
+  reportId,
+  reportTags,
+  feedbackMap,
+  canVote,
 }: {
   structure: ReportStructure;
   sourceMap: Map<string, SourceVideo>;
+  reportId: string;
+  reportTags: string[];
+  feedbackMap: Map<string, FeedbackVote>;
+  canVote: boolean;
 }) {
   return (
     <div className="space-y-9">
@@ -79,6 +145,26 @@ function StructuredReport({
                     <li key={`${subsection.title}-${index}`}>
                       <span>{item.text}</span>
                       <SourceChips sourceVideoIds={item.sourceVideoIds} sourceMap={sourceMap} />
+                      {canVote ? (
+                        <FeedbackControls
+                          selectedVote={feedbackMap.get(
+                            feedbackFingerprint({
+                              reportId,
+                              sectionTitle: section.title,
+                              subsectionTitle: subsection.title,
+                              itemIndex: index,
+                              itemText: item.text,
+                            }),
+                          )}
+                          reportId={reportId}
+                          sectionTitle={section.title}
+                          subsectionTitle={subsection.title}
+                          itemIndex={index}
+                          itemText={item.text}
+                          sourceVideoIds={item.sourceVideoIds}
+                          tags={reportTags}
+                        />
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -107,6 +193,8 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
       .where(eq(reportVideos.reportId, report.id));
     const structuredReport = parseReportStructure(report.structuredJson);
     const sourceMap = new Map(usedVideos.map((row) => [row.video.id, row]));
+    const canVote = await isAdminSession();
+    const feedbackMap = canVote ? await feedbackForReport(report.id) : new Map<string, FeedbackVote>();
 
     return (
       <AppShell>
@@ -141,7 +229,14 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
             <CardContent className="p-5 sm:p-8">
               <div className="prose-pulse max-w-none">
                 {structuredReport ? (
-                  <StructuredReport structure={structuredReport} sourceMap={sourceMap} />
+                  <StructuredReport
+                    structure={structuredReport}
+                    sourceMap={sourceMap}
+                    reportId={report.id}
+                    reportTags={report.tags}
+                    feedbackMap={feedbackMap}
+                    canVote={canVote}
+                  />
                 ) : (
                   <ReactMarkdown
                     components={{

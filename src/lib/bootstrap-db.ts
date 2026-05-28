@@ -6,6 +6,7 @@ import { SOURCE_ROSTER, resolveRssUrl } from "@/lib/source-roster";
 const schemaStatements = [
   `DO $$ BEGIN CREATE TYPE "public"."layer" AS ENUM('macro_financial', 'deep_tech_ai', 'tesla_ownership'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
   `DO $$ BEGIN CREATE TYPE "public"."transcript_status" AS ENUM('available', 'unavailable', 'manual', 'error'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN CREATE TYPE "public"."feedback_vote" AS ENUM('up', 'down'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
   `CREATE TABLE IF NOT EXISTS "daily_reports" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "date" date NOT NULL,
@@ -68,6 +69,21 @@ const schemaStatements = [
     "video_id" uuid NOT NULL REFERENCES "public"."videos"("id") ON DELETE cascade,
     CONSTRAINT "report_videos_report_id_video_id_pk" PRIMARY KEY("report_id","video_id")
   )`,
+  `CREATE TABLE IF NOT EXISTS "report_feedback" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "report_id" uuid NOT NULL REFERENCES "public"."daily_reports"("id") ON DELETE cascade,
+    "item_fingerprint" text NOT NULL,
+    "vote" "feedback_vote" NOT NULL,
+    "item_text" text NOT NULL,
+    "section_title" text NOT NULL,
+    "subsection_title" text NOT NULL,
+    "source_video_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    "tags" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    "metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+    "note" text,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS "email_logs" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "report_id" uuid REFERENCES "public"."daily_reports"("id") ON DELETE set null,
@@ -99,6 +115,9 @@ const schemaStatements = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "daily_reports_slug_unique" ON "daily_reports" USING btree ("slug")`,
   `CREATE INDEX IF NOT EXISTS "daily_reports_date_idx" ON "daily_reports" USING btree ("date")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "report_feedback_report_item_unique" ON "report_feedback" USING btree ("report_id","item_fingerprint")`,
+  `CREATE INDEX IF NOT EXISTS "report_feedback_vote_idx" ON "report_feedback" USING btree ("vote")`,
+  `CREATE INDEX IF NOT EXISTS "report_feedback_updated_idx" ON "report_feedback" USING btree ("updated_at")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "sources_display_name_unique" ON "sources" USING btree ("display_name")`,
   `CREATE INDEX IF NOT EXISTS "sources_layer_idx" ON "sources" USING btree ("layer")`,
   `CREATE INDEX IF NOT EXISTS "sources_active_idx" ON "sources" USING btree ("is_active")`,

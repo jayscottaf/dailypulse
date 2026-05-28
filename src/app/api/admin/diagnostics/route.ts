@@ -1,7 +1,7 @@
 import { count, desc, isNull } from "drizzle-orm";
 import { requireAdminSecret } from "@/lib/auth";
 import { getDb } from "@/db/client";
-import { errorLogs, ingestionRuns, sources, videoSummaries, videos } from "@/db/schema";
+import { errorLogs, ingestionRuns, reportFeedback, sources, videoSummaries, videos } from "@/db/schema";
 
 export const maxDuration = 30;
 
@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     [missingChannelIds],
     [videoCount],
     [summaryCount],
+    [feedbackCount],
     sourceRows,
     recentVideos,
     recentRuns,
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
     db.select({ value: count() }).from(sources).where(isNull(sources.youtubeChannelId)),
     db.select({ value: count() }).from(videos),
     db.select({ value: count() }).from(videoSummaries),
+    db.select({ value: count() }).from(reportFeedback),
     db
       .select({
         displayName: sources.displayName,
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
       missingChannelIds: missingChannelIds?.value ?? 0,
       videos: videoCount?.value ?? 0,
       videoSummaries: summaryCount?.value ?? 0,
+      reportFeedback: feedbackCount?.value ?? 0,
     },
     sources: sourceRows,
     recentVideos,

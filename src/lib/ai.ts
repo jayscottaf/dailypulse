@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import OpenAI from "openai";
 import { z } from "zod";
 import type { Source, Video, VideoSummary } from "@/db/schema";
+import type { FeedbackProfile } from "@/lib/feedback";
 import { parseReportStructure } from "@/lib/report-structure";
 import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
@@ -120,7 +121,24 @@ export type GeneratedReportPayload = {
   tags: string[];
 };
 
-export function buildDailyReportPrompt(reportDate: string, videos: ReportInputVideo[]) {
+function buildFeedbackInstructions(profile?: FeedbackProfile) {
+  if (!profile || profile.totalVotes === 0) return "No prior item-level feedback has been recorded yet.";
+
+  return `Jason preference profile from prior thumbs feedback:
+${JSON.stringify(profile, null, 2)}
+
+Apply feedback gently:
+- Give more prominence to items similar to liked examples, tags, and sections.
+- Reduce generic or low-value patterns similar to disliked examples.
+- Do not hide important source-backed news solely because it resembles a disliked topic.
+- Use feedback most strongly in "How It Affects Me" prioritization and specificity.`;
+}
+
+export function buildDailyReportPrompt(
+  reportDate: string,
+  videos: ReportInputVideo[],
+  feedbackProfile?: FeedbackProfile,
+) {
   const grouped = videos.map(({ video, source, summary }) => ({
     sourceVideoId: video.id,
     layer: LAYERS[source.layer],
@@ -165,6 +183,9 @@ Delivery rules:
 - Personalize to Jason: investing, macro flows, AI execution, automation businesses, real estate/tax strategy, and premium Tesla ownership.
 - End directly after the final section.
 
+Personalization feedback:
+${buildFeedbackInstructions(feedbackProfile)}
+
 Return JSON only with:
 {
   "title": string,
@@ -206,6 +227,7 @@ ${JSON.stringify(grouped, null, 2)}`;
 export async function generateDailyReportMarkdown(
   reportDate: string,
   videos: ReportInputVideo[],
+  feedbackProfile?: FeedbackProfile,
 ): Promise<GeneratedReportPayload> {
   if (videos.length === 0) {
     const formattedDate = formatReportDate(reportDate);
@@ -387,7 +409,7 @@ No high-signal new source video found in this layer during this run.
         content:
           "You produce a private daily intelligence briefing for Jason Mergl. Return strict JSON only. Prioritize signal over completeness and avoid conversational wrap-up.",
       },
-      { role: "user", content: buildDailyReportPrompt(reportDate, videos) },
+      { role: "user", content: buildDailyReportPrompt(reportDate, videos, feedbackProfile) },
     ],
   });
 

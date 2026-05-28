@@ -26,6 +26,8 @@ export const transcriptStatusEnum = pgEnum("transcript_status", [
   "error",
 ]);
 
+export const feedbackVoteEnum = pgEnum("feedback_vote", ["up", "down"]);
+
 export const sources = pgTable(
   "sources",
   {
@@ -135,6 +137,32 @@ export const reportVideos = pgTable(
   }),
 );
 
+export const reportFeedback = pgTable(
+  "report_feedback",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => dailyReports.id, { onDelete: "cascade" }),
+    itemFingerprint: text("item_fingerprint").notNull(),
+    vote: feedbackVoteEnum("vote").notNull(),
+    itemText: text("item_text").notNull(),
+    sectionTitle: text("section_title").notNull(),
+    subsectionTitle: text("subsection_title").notNull(),
+    sourceVideoIds: jsonb("source_video_ids").$type<string[]>().default([]).notNull(),
+    tags: jsonb("tags").$type<string[]>().default([]).notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    reportItemUnique: uniqueIndex("report_feedback_report_item_unique").on(table.reportId, table.itemFingerprint),
+    voteIdx: index("report_feedback_vote_idx").on(table.vote),
+    updatedIdx: index("report_feedback_updated_idx").on(table.updatedAt),
+  }),
+);
+
 export const emailLogs = pgTable("email_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
   reportId: uuid("report_id").references(() => dailyReports.id, { onDelete: "set null" }),
@@ -171,3 +199,4 @@ export type Source = typeof sources.$inferSelect;
 export type Video = typeof videos.$inferSelect;
 export type VideoSummary = typeof videoSummaries.$inferSelect;
 export type DailyReport = typeof dailyReports.$inferSelect;
+export type ReportFeedback = typeof reportFeedback.$inferSelect;

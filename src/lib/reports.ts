@@ -3,15 +3,17 @@ import { getDb } from "@/db/client";
 import { dailyReports, reportVideos, videos } from "@/db/schema";
 import { generateDailyReportMarkdown } from "@/lib/ai";
 import { logError } from "@/lib/errors";
+import { buildFeedbackProfile } from "@/lib/feedback";
 import { videosForReport } from "@/lib/ingestion";
 import { createReportSlug, todayIso } from "@/lib/slug";
 
 export async function generateDailyReport(reportDate = todayIso()) {
   const db = getDb();
   const reportInput = await videosForReport(72);
+  const feedbackProfile = await buildFeedbackProfile();
 
   try {
-    const generated = await generateDailyReportMarkdown(reportDate, reportInput);
+    const generated = await generateDailyReportMarkdown(reportDate, reportInput, feedbackProfile);
     const slug = createReportSlug(reportDate);
     const sourceVideoIds = reportInput.map((row) => row.video.id);
 

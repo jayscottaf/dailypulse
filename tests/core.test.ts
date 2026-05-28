@@ -4,8 +4,9 @@ import { filterNewVideos } from "../src/lib/rss";
 import { normalizeSearchQuery } from "../src/lib/search";
 import { createReportSlug } from "../src/lib/slug";
 import { validateCronSecret } from "../src/lib/auth";
+import { buildDailyReportPrompt, generateDailyReportMarkdown } from "../src/lib/ai";
+import { feedbackFingerprint } from "../src/lib/feedback";
 import { parseReportStructure } from "../src/lib/report-structure";
-import { generateDailyReportMarkdown } from "../src/lib/ai";
 
 describe("core utilities", () => {
   it("creates stable report slugs", () => {
@@ -86,5 +87,43 @@ describe("core utilities", () => {
 
     expect(parsed?.sections).toHaveLength(4);
     expect(parsed?.sections[0].subsections[0].items[0].sourceVideoIds).toEqual([]);
+  });
+
+  it("creates stable feedback fingerprints", () => {
+    const input = {
+      reportId: "report-id",
+      sectionTitle: "THE MACRO FINANCIAL LAYER",
+      subsectionTitle: "Highlights & Breakdown",
+      itemIndex: 0,
+      itemText: "A source-backed point.",
+    };
+
+    expect(feedbackFingerprint(input)).toBe(feedbackFingerprint(input));
+    expect(feedbackFingerprint({ ...input, itemIndex: 1 })).not.toBe(feedbackFingerprint(input));
+  });
+
+  it("includes feedback profile in report prompts", () => {
+    const prompt = buildDailyReportPrompt("2026-05-27", [], {
+      totalVotes: 1,
+      totalUp: 1,
+      totalDown: 0,
+      likedTags: [{ value: "Tesla Software", votes: 1 }],
+      dislikedTags: [],
+      likedSections: [{ value: "THE TESLA OWNERSHIP & SOFTWARE LAYER", votes: 1 }],
+      dislikedSections: [],
+      likedExamples: [
+        {
+          section: "THE TESLA OWNERSHIP & SOFTWARE LAYER",
+          subsection: "Highlights & Breakdown",
+          text: "Practical Tesla software update.",
+          tags: ["Tesla Software"],
+          sourceVideoIds: ["video-1"],
+        },
+      ],
+      dislikedExamples: [],
+    });
+
+    expect(prompt).toContain("Jason preference profile");
+    expect(prompt).toContain("Practical Tesla software update.");
   });
 });

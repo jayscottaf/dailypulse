@@ -7,6 +7,7 @@ import { validateCronSecret } from "../src/lib/auth";
 import { buildDailyReportPrompt, generateDailyReportMarkdown } from "../src/lib/ai";
 import { feedbackFingerprint } from "../src/lib/feedback";
 import { parseReportStructure } from "../src/lib/report-structure";
+import { archiveTagHref, searchTagHref, uniqueTags } from "../src/lib/tags";
 import { extractTimelineLinks, videoUrlAtTime } from "../src/lib/video-timeline";
 
 describe("core utilities", () => {
@@ -140,5 +141,11 @@ describe("core utilities", () => {
 
     expect(links.map((link) => link.seconds)).toEqual([0, 754, 3723]);
     expect(links[1].href).toBe("https://www.youtube.com/watch?v=abc123&t=754s");
+  });
+
+  it("builds encoded tag navigation links", () => {
+    expect(archiveTagHref("no-code AI")).toBe("/archive?tag=no-code+AI");
+    expect(searchTagHref("human-in-the-loop")).toBe("/search?q=human-in-the-loop");
+    expect(uniqueTags([" Tesla ", "Tesla", "", "OTA update"])).toEqual(["Tesla", "OTA update"]);
   });
 });

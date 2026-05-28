@@ -2,13 +2,14 @@ import Link from "next/link";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
-import { Badge } from "@/components/ui/badge";
+import { TagLink } from "@/components/app/tag-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { listReports, listSources } from "@/lib/admin";
 import { isAdminSession } from "@/lib/page-auth";
 import { formatReportDate } from "@/lib/slug";
+import { archiveTagHref, uniqueTags } from "@/lib/tags";
 
 export default async function ArchivePage({
   searchParams,
@@ -60,24 +61,38 @@ export default async function ArchivePage({
           </Card>
 
           <div className="grid gap-4">
-            {filtered.map((report) => (
-              <Link key={report.id} href={`/daily-pulse/${report.slug}`}>
-                <Card className="transition-colors hover:bg-muted/40">
+            {filtered.map((report) => {
+              const tags = uniqueTags(report.tags).slice(0, 4);
+
+              return (
+                <Card key={report.id} className="transition-colors hover:bg-muted/30">
                   <CardContent className="p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="font-mono text-xs text-muted-foreground">{formatReportDate(report.date)}</p>
-                        <h2 className="mt-1 text-xl font-semibold">{report.title}</h2>
+                        <h2 className="mt-1 text-xl font-semibold">
+                          <Link href={`/daily-pulse/${report.slug}`} className="transition hover:text-accent">
+                            {report.title}
+                          </Link>
+                        </h2>
                         <p className="mt-2 text-sm text-muted-foreground">{report.summaryPreview}</p>
+                        <Link
+                          href={`/daily-pulse/${report.slug}`}
+                          className="mt-3 inline-flex text-sm font-medium text-accent underline-offset-4 hover:underline"
+                        >
+                          Open report
+                        </Link>
                       </div>
-                      <div className="flex flex-wrap gap-2 sm:justify-end">
-                        {report.tags.slice(0, 4).map((tag) => <Badge key={tag} variant="outline">{tag}</Badge>)}
-                      </div>
+                      {tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 sm:justify-end">
+                          {tags.map((tag) => <TagLink key={tag} tag={tag} href={archiveTagHref(tag)} />)}
+                        </div>
+                      ) : null}
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
-            ))}
+              );
+            })}
             {filtered.length === 0 ? <p className="text-sm text-muted-foreground">No reports match those filters.</p> : null}
           </div>
         </div>

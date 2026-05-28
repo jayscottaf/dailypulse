@@ -6,6 +6,7 @@ import { ExternalLink } from "lucide-react";
 import { CopyReportButton } from "@/components/app/copy-report-button";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
+import { TagLink } from "@/components/app/tag-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { isAdminSession } from "@/lib/page-auth";
 import { parseReportStructure, type ReportStructure } from "@/lib/report-structure";
 import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
+import { archiveTagHref, uniqueTags } from "@/lib/tags";
 import { FeedbackControls } from "./feedback-controls";
 
 type SourceVideo = {
@@ -150,6 +152,9 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
     const sourceMap = new Map(usedVideos.map((row) => [row.video.id, row]));
     const canVote = await isAdminSession();
     const feedbackMap = canVote ? await feedbackForReport(report.id) : new Map<string, FeedbackVote>();
+    const tags = uniqueTags(report.tags);
+    const topicTrailTags = tags.slice(0, 5);
+    const hiddenTagCount = Math.max(tags.length - topicTrailTags.length, 0);
 
     return (
       <AppShell>
@@ -158,9 +163,22 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">{formatReportDate(report.date)}</p>
             <h1 className="mt-3 max-w-3xl text-3xl font-semibold leading-tight sm:text-5xl">{report.title}</h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">{report.summaryPreview}</p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {report.tags.map((tag) => <Badge key={tag} variant="outline">{tag}</Badge>)}
-            </div>
+            {topicTrailTags.length > 0 ? (
+              <div className="mt-5 space-y-2">
+                <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Topic trail</p>
+                <div className="flex flex-wrap gap-2">
+                  {topicTrailTags.map((tag) => <TagLink key={tag} tag={tag} href={archiveTagHref(tag)} />)}
+                  {hiddenTagCount > 0 ? (
+                    <Link
+                      href="#all-tags"
+                      className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground transition hover:border-accent/70 hover:text-accent"
+                    >
+                      +{hiddenTagCount} more
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             <div className="mt-6 flex flex-wrap gap-2">
               <CopyReportButton markdown={report.fullMarkdown} />
               <Button asChild variant="outline">
@@ -205,6 +223,19 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
               </div>
             </CardContent>
           </Card>
+
+          {tags.length > 0 ? (
+            <Card id="all-tags" className="scroll-mt-24">
+              <CardHeader>
+                <CardTitle>All tags</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => <TagLink key={tag} tag={tag} href={archiveTagHref(tag)} />)}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

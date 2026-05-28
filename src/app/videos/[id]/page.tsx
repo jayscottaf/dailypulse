@@ -3,6 +3,7 @@ import { Clock, ExternalLink } from "lucide-react";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
+import { TagLink } from "@/components/app/tag-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { getDb } from "@/db/client";
 import { sources, videoSummaries, videos } from "@/db/schema";
 import { isAdminSession } from "@/lib/page-auth";
 import { LAYERS } from "@/lib/source-roster";
+import { searchTagHref, uniqueTags } from "@/lib/tags";
 import { extractTimelineLinks } from "@/lib/video-timeline";
 import { saveManualTranscript } from "./actions";
 
@@ -77,9 +79,13 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
               {row.summary ? (
                 <>
                   <p className="text-sm leading-6 text-muted-foreground">{row.summary.conciseSummary}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {row.summary.tags.map((tag) => <Badge key={tag} variant="outline">{tag}</Badge>)}
-                  </div>
+                  {row.summary.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {uniqueTags(row.summary.tags).map((tag) => (
+                        <TagLink key={tag} tag={tag} href={searchTagHref(tag)} />
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
                     Jason relevance: <span className="font-semibold text-foreground">{row.summary.relevanceScoreForJason}/100</span>
                   </div>

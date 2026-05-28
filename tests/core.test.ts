@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildEmailPayload, extractTopBullets } from "../src/lib/email";
 import { filterNewVideos } from "../src/lib/rss";
-import { normalizeSearchQuery } from "../src/lib/search";
+import { normalizeSearchQuery, normalizeSearchRows } from "../src/lib/search";
 import { createReportSlug } from "../src/lib/slug";
 import { validateCronSecret } from "../src/lib/auth";
 import { buildDailyReportPrompt, generateDailyReportMarkdown } from "../src/lib/ai";
@@ -26,6 +26,33 @@ describe("core utilities", () => {
 
   it("normalizes search queries", () => {
     expect(normalizeSearchQuery("  AI    liquidity   ")).toBe("AI liquidity");
+  });
+
+  it("unwraps raw SQL search rows from Neon results", () => {
+    expect(
+      normalizeSearchRows({
+        rows: [
+          {
+            type: "video",
+            id: "video-1",
+            title: "Value Investing",
+            snippet: "Margin of safety",
+            date: "2026-05-27",
+            href: "/videos/video-1",
+            rank: 0.5,
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        type: "video",
+        id: "video-1",
+        title: "Value Investing",
+        snippet: "Margin of safety",
+        date: "2026-05-27",
+        href: "/videos/video-1",
+      },
+    ]);
   });
 
   it("validates cron bearer secret", () => {

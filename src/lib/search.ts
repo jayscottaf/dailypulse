@@ -14,12 +14,34 @@ export function normalizeSearchQuery(query: string) {
   return query.trim().replace(/\s+/g, " ");
 }
 
+type RawSearchRow = SearchResult & { rank?: number };
+
+export function normalizeSearchRows(result: unknown): SearchResult[] {
+  const rows = Array.isArray(result)
+    ? result
+    : typeof result === "object" && result !== null && Array.isArray((result as { rows?: unknown }).rows)
+      ? (result as { rows: unknown[] }).rows
+      : [];
+
+  return rows.map((row) => {
+    const item = row as Partial<RawSearchRow>;
+    return {
+      type: item.type === "video" || item.type === "source" ? item.type : "report",
+      id: String(item.id ?? ""),
+      title: String(item.title ?? "Untitled"),
+      snippet: String(item.snippet ?? ""),
+      date: item.date ? String(item.date) : null,
+      href: String(item.href ?? "/search"),
+    };
+  });
+}
+
 export async function searchAll(query: string): Promise<SearchResult[]> {
   const normalized = normalizeSearchQuery(query);
   if (!normalized) return [];
 
   const db = getDb();
-  const rows = await db.execute(sql`
+  const result = await db.execute(sql`
     WITH q AS (SELECT plainto_tsquery('english', ${normalized}) AS query)
     SELECT 'report' AS type, id::text, title,
       ts_headline('english', full_markdown, q.query, 'MaxWords=24, MinWords=8') AS snippet,
@@ -49,5 +71,5 @@ export async function searchAll(query: string): Promise<SearchResult[]> {
     LIMIT 50
   `);
 
-  return rows as unknown as SearchResult[];
+  return normalizeSearchRows(result);
 }

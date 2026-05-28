@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState } from "react";
 import { Mail, Newspaper, Play, Search } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,22 +29,18 @@ const CONTROLS: ControlAction[] = [
 ];
 
 function ControlButton({ control }: { control: ControlAction }) {
-  const [isPending, startTransition] = useTransition();
-  const [result, setResult] = useState<ActionResult | null>(null);
+  // useActionState holds the action's return value as state that survives the
+  // revalidatePath() refresh the action triggers, so the success/error text
+  // actually sticks instead of flashing and disappearing.
+  const [result, formAction, isPending] = useActionState<ActionResult | null>(
+    () => control.run(),
+    null,
+  );
   const Icon = control.icon;
 
   return (
-    <div className="space-y-1.5">
-      <Button
-        className="w-full"
-        variant={control.variant}
-        disabled={isPending}
-        onClick={() =>
-          startTransition(async () => {
-            setResult(await control.run());
-          })
-        }
-      >
+    <form action={formAction} className="space-y-1.5">
+      <Button className="w-full" type="submit" variant={control.variant} disabled={isPending}>
         <Icon /> {isPending ? control.pendingLabel : control.label}
       </Button>
       {result ? (
@@ -52,7 +48,7 @@ function ControlButton({ control }: { control: ControlAction }) {
           {result.message}
         </p>
       ) : null}
-    </div>
+    </form>
   );
 }
 

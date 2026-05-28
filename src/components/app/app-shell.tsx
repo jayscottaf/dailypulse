@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Activity, Archive, Search, Settings, Video } from "lucide-react";
+import { Activity, Archive, Search, Settings, ThumbsUp, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/admin", label: "Admin", icon: Activity },
   { href: "/archive", label: "Archive", icon: Archive },
+  { href: "/liked", label: "Liked", icon: ThumbsUp },
   { href: "/search", label: "Search", icon: Search },
   { href: "/sources", label: "Sources", icon: Settings },
 ];

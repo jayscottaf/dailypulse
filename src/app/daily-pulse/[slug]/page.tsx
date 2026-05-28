@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { eq } from "drizzle-orm";
-import { ExternalLink, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { CopyReportButton } from "@/components/app/copy-report-button";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
@@ -17,7 +17,7 @@ import { isAdminSession } from "@/lib/page-auth";
 import { parseReportStructure, type ReportStructure } from "@/lib/report-structure";
 import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
-import { saveReportFeedback } from "./actions";
+import { FeedbackControls } from "./feedback-controls";
 
 type SourceVideo = {
   video: Video;
@@ -45,74 +45,29 @@ function SourceChips({
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <span className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Sources</span>
       {linkedVideos.map(({ video, source }) => (
-        <a
+        <span
           key={video.id}
-          href={video.url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs font-medium text-muted-foreground transition hover:border-accent/60 hover:text-foreground"
+          className="inline-flex max-w-full items-center overflow-hidden rounded-md border border-border bg-muted/50 text-xs font-medium text-muted-foreground"
           title={`${source.displayName}: ${video.title}`}
         >
-          <ExternalLink className="h-3 w-3 shrink-0" />
-          <span className="truncate">{source.displayName.split("/")[0].trim()}: {video.title}</span>
-        </a>
+          <Link
+            href={`/videos/${video.id}`}
+            className="truncate px-2 py-1 transition hover:text-foreground"
+          >
+            {source.displayName.split("/")[0].trim()}: {video.title}
+          </Link>
+          <a
+            href={video.url}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open ${video.title} on YouTube`}
+            className="border-l border-border px-1.5 py-1 transition hover:bg-background hover:text-foreground"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </span>
       ))}
     </div>
-  );
-}
-
-function FeedbackControls({
-  selectedVote,
-  reportId,
-  sectionTitle,
-  subsectionTitle,
-  itemIndex,
-  itemText,
-  sourceVideoIds,
-  tags,
-}: {
-  selectedVote?: FeedbackVote;
-  reportId: string;
-  sectionTitle: string;
-  subsectionTitle: string;
-  itemIndex: number;
-  itemText: string;
-  sourceVideoIds: string[];
-  tags: string[];
-}) {
-  const buttonBase =
-    "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition hover:border-accent/60 hover:text-foreground";
-  const selected = "border-accent/80 bg-accent/15 text-accent";
-
-  return (
-    <form action={saveReportFeedback} className="mt-2 flex items-center gap-1">
-      <input type="hidden" name="reportId" value={reportId} />
-      <input type="hidden" name="sectionTitle" value={sectionTitle} />
-      <input type="hidden" name="subsectionTitle" value={subsectionTitle} />
-      <input type="hidden" name="itemIndex" value={itemIndex} />
-      <input type="hidden" name="itemText" value={itemText} />
-      <input type="hidden" name="sourceVideoIds" value={JSON.stringify(sourceVideoIds)} />
-      <input type="hidden" name="tags" value={JSON.stringify(tags)} />
-      <span className="mr-1 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Tune</span>
-      <button
-        type="submit"
-        name="vote"
-        value="up"
-        aria-label="Show more items like this"
-        className={`${buttonBase} ${selectedVote === "up" ? selected : ""}`}
-      >
-        <ThumbsUp className="h-4 w-4" />
-      </button>
-      <button
-        type="submit"
-        name="vote"
-        value="down"
-        aria-label="Show fewer items like this"
-        className={`${buttonBase} ${selectedVote === "down" ? selected : ""}`}
-      >
-        <ThumbsDown className="h-4 w-4" />
-      </button>
-    </form>
   );
 }
 
@@ -265,7 +220,11 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
                       <Badge variant="muted">{LAYERS[source.layer]}</Badge>
                       <Badge variant="outline">{video.transcriptStatus}</Badge>
                     </div>
-                    <h3 className="mt-2 font-semibold">{video.title}</h3>
+                    <h3 className="mt-2 font-semibold">
+                      <Link href={`/videos/${video.id}`} className="transition hover:text-accent">
+                        {video.title}
+                      </Link>
+                    </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {source.displayName} - {video.publishedAt.toLocaleDateString()}
                     </p>

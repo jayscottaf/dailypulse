@@ -7,6 +7,7 @@ import { validateCronSecret } from "../src/lib/auth";
 import { buildDailyReportPrompt, generateDailyReportMarkdown } from "../src/lib/ai";
 import { feedbackFingerprint } from "../src/lib/feedback";
 import { parseReportStructure } from "../src/lib/report-structure";
+import { extractTimelineLinks, videoUrlAtTime } from "../src/lib/video-timeline";
 
 describe("core utilities", () => {
   it("creates stable report slugs", () => {
@@ -125,5 +126,19 @@ describe("core utilities", () => {
 
     expect(prompt).toContain("Jason preference profile");
     expect(prompt).toContain("Practical Tesla software update.");
+  });
+
+  it("builds timestamped YouTube timeline links", () => {
+    expect(videoUrlAtTime("https://www.youtube.com/watch?v=abc123", 95)).toBe(
+      "https://www.youtube.com/watch?v=abc123&t=95s",
+    );
+
+    const links = extractTimelineLinks({
+      videoUrl: "https://www.youtube.com/watch?v=abc123",
+      description: "0:00 Intro\n12:34 Macro setup\n1:02:03 Long segment",
+    });
+
+    expect(links.map((link) => link.seconds)).toEqual([0, 754, 3723]);
+    expect(links[1].href).toBe("https://www.youtube.com/watch?v=abc123&t=754s");
   });
 });

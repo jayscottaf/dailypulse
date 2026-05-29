@@ -16,6 +16,7 @@ import type { Source, Video } from "@/db/schema";
 import { feedbackFingerprint, feedbackForReport, type FeedbackVote } from "@/lib/feedback";
 import { isAdminSession } from "@/lib/page-auth";
 import { parseReportStructure, type ReportStructure } from "@/lib/report-structure";
+import { adjacentReports } from "@/lib/reports";
 import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
 import { archiveTagHref, uniqueTags } from "@/lib/tags";
@@ -45,16 +46,16 @@ function SourceChips({
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <span className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Sources</span>
+      <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-[0.65rem]">Sources</span>
       {linkedVideos.map(({ video, source }) => (
         <span
           key={video.id}
-          className="inline-flex max-w-full items-center overflow-hidden rounded-md border border-border bg-muted/50 text-xs font-medium text-muted-foreground"
+          className="inline-flex min-w-0 max-w-full items-center overflow-hidden rounded-md border border-border bg-muted/50 text-xs font-medium text-muted-foreground sm:max-w-[20rem]"
           title={`${source.displayName}: ${video.title}`}
         >
           <Link
             href={`/videos/${video.id}`}
-            className="truncate px-2 py-1 transition hover:text-foreground"
+            className="min-w-0 truncate px-2 py-1 transition hover:text-foreground"
           >
             {source.displayName.split("/")[0].trim()}: {video.title}
           </Link>
@@ -156,6 +157,20 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
     const topicTrailTags = tags.slice(0, 5);
     const hiddenTagCount = Math.max(tags.length - topicTrailTags.length, 0);
 
+    const adjacent = await adjacentReports(report.date);
+    const isLatest = adjacent.latest?.id === report.id;
+    // Derive the in-report jump nav from the actual report structure; fall back
+    // to the canonical four layers only when there's no usable structure.
+    const navSections =
+      structuredReport && structuredReport.sections.length >= 2
+        ? structuredReport.sections.map((section) => section.title)
+        : [
+            "THE MACRO FINANCIAL LAYER",
+            "THE DEEP-TECH & AI AUTOMATION LAYER",
+            "THE TESLA OWNERSHIP & SOFTWARE LAYER",
+            "JASON PERSONAL PULSE",
+          ];
+
     return (
       <AppShell>
         <article className="space-y-6">
@@ -165,7 +180,7 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
             <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">{report.summaryPreview}</p>
             {topicTrailTags.length > 0 ? (
               <div className="mt-5 space-y-2">
-                <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Topic trail</p>
+                <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-[0.65rem]">Topic trail</p>
                 <div className="flex flex-wrap gap-2">
                   {topicTrailTags.map((tag) => <TagLink key={tag} tag={tag} href={archiveTagHref(tag)} />)}
                   {hiddenTagCount > 0 ? (
@@ -190,13 +205,39 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
             </div>
           </section>
 
-          <nav className="grid gap-2 sm:grid-cols-4">
-            {["THE MACRO FINANCIAL LAYER", "THE DEEP-TECH & AI AUTOMATION LAYER", "THE TESLA OWNERSHIP & SOFTWARE LAYER", "JASON PERSONAL PULSE"].map((section) => (
-              <a key={section} href={`#${sectionId(section)}`} className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-                {section}
-              </a>
-            ))}
-          </nav>
+          {navSections.length >= 2 ? (
+            <nav className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {navSections.map((section) => (
+                <a key={section} href={`#${sectionId(section)}`} className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+                  {section}
+                </a>
+              ))}
+            </nav>
+          ) : null}
+
+          {adjacent.previous || adjacent.next || !isLatest ? (
+            <nav aria-label="Report navigation" className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                {adjacent.previous ? (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/daily-pulse/${adjacent.previous.slug}`}>← {formatReportDate(adjacent.previous.date)}</Link>
+                  </Button>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!isLatest && adjacent.latest ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/daily-pulse/${adjacent.latest.slug}`}>Latest</Link>
+                  </Button>
+                ) : null}
+                {adjacent.next ? (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/daily-pulse/${adjacent.next.slug}`}>{formatReportDate(adjacent.next.date)} →</Link>
+                  </Button>
+                ) : null}
+              </div>
+            </nav>
+          ) : null}
 
           <Card>
             <CardContent className="p-5 sm:p-8">

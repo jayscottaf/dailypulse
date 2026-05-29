@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq, gt, lt } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { dailyReports, reportVideos, videos } from "@/db/schema";
 import { generateDailyReportMarkdown } from "@/lib/ai";
@@ -64,6 +64,21 @@ export async function generateDailyReport(reportDate = todayIso()) {
 export async function latestReport() {
   const [report] = await getDb().select().from(dailyReports).orderBy(desc(dailyReports.generatedAt)).limit(1);
   return report ?? null;
+}
+
+// Previous/next/latest reports by calendar date (not generatedAt), for in-report
+// navigation between consecutive days.
+export async function adjacentReports(date: string) {
+  const db = getDb();
+  const cols = { id: dailyReports.id, slug: dailyReports.slug, date: dailyReports.date };
+
+  const [previous, next, latest] = await Promise.all([
+    db.select(cols).from(dailyReports).where(lt(dailyReports.date, date)).orderBy(desc(dailyReports.date)).limit(1),
+    db.select(cols).from(dailyReports).where(gt(dailyReports.date, date)).orderBy(asc(dailyReports.date)).limit(1),
+    db.select(cols).from(dailyReports).orderBy(desc(dailyReports.date)).limit(1),
+  ]);
+
+  return { previous: previous[0] ?? null, next: next[0] ?? null, latest: latest[0] ?? null };
 }
 
 export async function reportSources(reportId: string) {

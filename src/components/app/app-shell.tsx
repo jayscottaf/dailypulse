@@ -13,6 +13,12 @@ const nav = [
 export function AppShell({ children, compact = false }: { children: React.ReactNode; compact?: boolean }) {
   return (
     <div className="min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-foreground focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-background"
+      >
+        Skip to content
+      </a>
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex items-center gap-2">
@@ -41,7 +47,7 @@ export function AppShell({ children, compact = false }: { children: React.ReactN
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">{children}</main>
+      <main id="main-content" className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">{children}</main>
     </div>
   );
 }

@@ -7,14 +7,13 @@ import { TagLink } from "@/components/app/tag-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { getDb } from "@/db/client";
 import { sources, videoSummaries, videos } from "@/db/schema";
 import { isAdminSession } from "@/lib/page-auth";
 import { LAYERS } from "@/lib/source-roster";
 import { searchTagHref, uniqueTags } from "@/lib/tags";
 import { extractTimelineLinks } from "@/lib/video-timeline";
-import { saveManualTranscript } from "./actions";
+import { TranscriptForm } from "./transcript-form";
 
 function SummaryList({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) return null;
@@ -130,11 +129,7 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
           <Card>
             <CardHeader><CardTitle>Transcript</CardTitle></CardHeader>
             <CardContent>
-              <form action={saveManualTranscript} className="space-y-3">
-                <input type="hidden" name="id" value={row.video.id} />
-                <Textarea name="transcriptText" defaultValue={row.video.transcriptText ?? ""} placeholder="Paste or edit transcript text here." />
-                <Button type="submit">Save manual transcript</Button>
-              </form>
+              <TranscriptForm videoId={row.video.id} defaultValue={row.video.transcriptText ?? ""} />
             </CardContent>
           </Card>
         </div>

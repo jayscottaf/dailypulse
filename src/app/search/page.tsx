@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
@@ -7,16 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { isAdminSession } from "@/lib/page-auth";
-import { searchAll } from "@/lib/search";
+import { normalizeSearchQuery, searchAll } from "@/lib/search";
+
+const EXAMPLE_QUERIES = ["macro liquidity", "Tesla FSD", "AI agents", "bond yields", "Model Y"];
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   if (!(await isAdminSession())) return <AdminLogin />;
 
   const params = await searchParams;
   const query = params.q ?? "";
+  const normalized = normalizeSearchQuery(query);
 
   try {
-    const results = await searchAll(query);
+    const results = normalized ? await searchAll(query) : [];
 
     return (
       <AppShell>
@@ -26,13 +30,37 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             <h1 className="mt-2 text-3xl font-semibold">Reports, videos, sources</h1>
           </section>
 
-          <form className="flex gap-2">
+          <Form action="/search" className="flex gap-2">
             <Input name="q" defaultValue={query} placeholder="Search macro liquidity, Tesla FSD, AI agents..." />
             <Button type="submit">Search</Button>
-          </form>
+          </Form>
+
+          {normalized ? (
+            <p className="text-sm text-muted-foreground">
+              {results.length} result{results.length === 1 ? "" : "s"} for{" "}
+              <span className="font-medium text-foreground">&ldquo;{normalized}&rdquo;</span>
+            </p>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              <p>Try a topic:</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {EXAMPLE_QUERIES.map((example) => (
+                  <Link
+                    key={example}
+                    href={`/search?q=${encodeURIComponent(example)}`}
+                    className="rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition hover:border-accent/70 hover:text-accent"
+                  >
+                    {example}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-3">
-            {query && results.length === 0 ? <p className="text-sm text-muted-foreground">No results found.</p> : null}
+            {normalized && results.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No results found. Try broader or different terms.</p>
+            ) : null}
             {results.map((result) => (
               <Link key={`${result.type}-${result.id}`} href={result.href}>
                 <Card className="transition-colors hover:bg-muted/40">

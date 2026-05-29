@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Mail, Newspaper, Play, Search } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ActionStatus } from "@/components/app/action-status";
 import {
   generateReportAction,
   rebuildSearchAction,
@@ -43,11 +43,7 @@ function ControlButton({ control }: { control: ControlAction }) {
       <Button className="w-full" type="submit" variant={control.variant} disabled={isPending}>
         <Icon /> {isPending ? control.pendingLabel : control.label}
       </Button>
-      {result ? (
-        <p role="status" className={cn("text-xs leading-snug", result.ok ? "text-emerald-500" : "text-red-400")}>
-          {result.message}
-        </p>
-      ) : null}
+      <ActionStatus result={result} />
     </form>
   );
 }

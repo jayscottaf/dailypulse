@@ -1,20 +1,36 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
+import { Wand2 } from "lucide-react";
 import type { Source } from "@/db/schema";
 import { ActionStatus } from "@/components/app/action-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { saveSource } from "./actions";
+import type { ActionResult } from "@/lib/action-result";
+import { resolveHandle, saveSource } from "./actions";
 
 // One form for both "add" (source = null) and "edit" (source provided). Field
 // ids are suffixed so multiple forms on the page don't collide. Feedback is
 // shown inline via useActionState + ActionStatus, matching pipeline-controls.
+// Channel ID + handle are controlled so the "Resolve" button can fill in the id.
 export function SourceForm({ source, layers }: { source?: Source | null; layers: [string, string][] }) {
   const [result, formAction, isPending] = useActionState(saveSource, null);
+  const [channelId, setChannelId] = useState(source?.youtubeChannelId ?? "");
+  const [handle, setHandle] = useState(source?.youtubeHandle ?? "");
+  const [resolving, startResolve] = useTransition();
+  const [resolveMsg, setResolveMsg] = useState<ActionResult | null>(null);
   const suffix = source?.id ?? "new";
+
+  function onResolve() {
+    setResolveMsg(null);
+    startResolve(async () => {
+      const res = await resolveHandle(handle);
+      if (res.channelId) setChannelId(res.channelId);
+      setResolveMsg({ ok: res.ok, message: res.message });
+    });
+  }
 
   return (
     <form action={formAction} className="grid gap-4 md:grid-cols-2">
@@ -34,8 +50,39 @@ export function SourceForm({ source, layers }: { source?: Source | null; layers:
           ))}
         </select>
       </div>
-      <FormField name="youtubeChannelId" suffix={suffix} label="YouTube channel ID" defaultValue={source?.youtubeChannelId ?? ""} />
-      <FormField name="youtubeHandle" suffix={suffix} label="YouTube handle" defaultValue={source?.youtubeHandle ?? ""} />
+
+      <div className="space-y-2">
+        <Label htmlFor={`youtubeChannelId-${suffix}`}>YouTube channel ID</Label>
+        <Input
+          id={`youtubeChannelId-${suffix}`}
+          name="youtubeChannelId"
+          value={channelId}
+          onChange={(event) => setChannelId(event.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`youtubeHandle-${suffix}`}>YouTube handle</Label>
+        <div className="flex gap-2">
+          <Input
+            id={`youtubeHandle-${suffix}`}
+            name="youtubeHandle"
+            value={handle}
+            onChange={(event) => setHandle(event.target.value)}
+            placeholder="@handle"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onResolve}
+            disabled={resolving || !handle.trim()}
+            title="Resolve channel ID from handle"
+          >
+            <Wand2 /> {resolving ? "Resolving…" : "Resolve"}
+          </Button>
+        </div>
+        <ActionStatus result={resolveMsg} />
+      </div>
+
       <FormField name="rssUrl" suffix={suffix} label="RSS URL" defaultValue={source?.rssUrl ?? ""} />
       <label className="flex items-center gap-2 pt-8 text-sm">
         <input name="isActive" type="checkbox" defaultChecked={source ? source.isActive : true} /> Active

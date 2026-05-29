@@ -83,8 +83,9 @@ export function FeedbackControls({
       <input type="hidden" name="sourceVideoIds" value={JSON.stringify(sourceVideoIds)} />
       <input type="hidden" name="tags" value={JSON.stringify(tags)} />
       <span
+        role="status"
         className={cn(
-          "mr-1 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground",
+          "mr-1 font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-[0.65rem]",
           state.status === "error" && "text-destructive",
           activeVote && state.status !== "error" && "text-accent",
         )}

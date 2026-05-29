@@ -1,15 +1,23 @@
+import Form from "next/form";
 import Link from "next/link";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
 import { TagLink } from "@/components/app/tag-link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { listReports, listSources } from "@/lib/admin";
 import { isAdminSession } from "@/lib/page-auth";
-import { formatReportDate } from "@/lib/slug";
+import { formatReportDate, todayIso } from "@/lib/slug";
 import { archiveTagHref, uniqueTags } from "@/lib/tags";
+
+function isoDaysAgo(days: number) {
+  const date = new Date(`${todayIso()}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
 
 export default async function ArchivePage({
   searchParams,
@@ -31,6 +39,20 @@ export default async function ArchivePage({
       return true;
     });
 
+    const activeFilters = [
+      params.from && `from ${params.from}`,
+      params.to && `to ${params.to}`,
+      params.tag && `tag "${params.tag}"`,
+      params.source && `source "${params.source}"`,
+      params.layer && `layer "${params.layer}"`,
+    ].filter(Boolean);
+
+    const presets: { label: string; href: string }[] = [
+      { label: "Last 7 days", href: `/archive?from=${isoDaysAgo(7)}` },
+      { label: "Last 30 days", href: `/archive?from=${isoDaysAgo(30)}` },
+      { label: "All", href: "/archive" },
+    ];
+
     return (
       <AppShell>
         <div className="space-y-6">
@@ -40,25 +62,43 @@ export default async function ArchivePage({
           </section>
 
           <Card>
-            <CardContent className="grid gap-4 p-5 md:grid-cols-5">
-              <Field name="from" label="From" type="date" defaultValue={params.from} />
-              <Field name="to" label="To" type="date" defaultValue={params.to} />
-              <Field name="tag" label="Tag" defaultValue={params.tag} />
-              <div className="space-y-2">
-                <Label htmlFor="source">Source channel</Label>
-                <select id="source" name="source" form="archive-filter" defaultValue={params.source ?? ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">All sources</option>
-                  {sources.map((source) => (
-                    <option key={source.id} value={source.displayName}>{source.displayName}</option>
-                  ))}
-                </select>
+            <Form action="/archive">
+              <CardContent className="grid gap-4 p-5 md:grid-cols-5">
+                <Field name="from" label="From" type="date" defaultValue={params.from} />
+                <Field name="to" label="To" type="date" defaultValue={params.to} />
+                <Field name="tag" label="Tag" defaultValue={params.tag} />
+                <div className="space-y-2">
+                  <Label htmlFor="source">Source channel</Label>
+                  <select id="source" name="source" defaultValue={params.source ?? ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">All sources</option>
+                    {sources.map((source) => (
+                      <option key={source.id} value={source.displayName}>{source.displayName}</option>
+                    ))}
+                  </select>
+                </div>
+                <Field name="layer" label="Layer/category" defaultValue={params.layer} />
+              </CardContent>
+              <div className="flex flex-wrap items-center gap-2 px-5 pb-5">
+                <Button type="submit" size="sm">Apply filters</Button>
+                <Button asChild size="sm" variant="ghost"><Link href="/archive">Clear</Link></Button>
+                <span className="text-muted-foreground">·</span>
+                {presets.map((preset) => (
+                  <Link
+                    key={preset.label}
+                    href={preset.href}
+                    className="rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition hover:border-accent/70 hover:text-accent"
+                  >
+                    {preset.label}
+                  </Link>
+                ))}
               </div>
-              <Field name="layer" label="Layer/category" defaultValue={params.layer} />
-            </CardContent>
-            <form id="archive-filter" className="px-5 pb-5">
-              <button className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background">Apply filters</button>
-            </form>
+            </Form>
           </Card>
+
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} report{filtered.length === 1 ? "" : "s"}
+            {activeFilters.length > 0 ? ` — filtered by ${activeFilters.join(", ")}` : ""}
+          </p>
 
           <div className="grid gap-4">
             {filtered.map((report) => {
@@ -111,7 +151,7 @@ function Field({ name, label, type = "text", defaultValue }: { name: string; lab
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} type={type} form="archive-filter" defaultValue={defaultValue} />
+      <Input id={name} name={name} type={type} defaultValue={defaultValue} />
     </div>
   );
 }

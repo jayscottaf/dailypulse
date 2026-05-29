@@ -13,16 +13,32 @@ import { isAdminSession } from "@/lib/page-auth";
 import { formatReportDate, todayIso } from "@/lib/slug";
 import { archiveTagHref, uniqueTags } from "@/lib/tags";
 
+const PAGE_SIZE = 20;
+
 function isoDaysAgo(days: number) {
   const date = new Date(`${todayIso()}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() - days);
   return date.toISOString().slice(0, 10);
 }
 
+// Build an /archive URL that preserves current filters, applying overrides.
+// undefined/"" overrides drop that param (e.g. resetting page or clearing sort).
+function archiveHref(
+  params: Record<string, string | undefined>,
+  overrides: Record<string, string | number | undefined>,
+) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries({ ...params, ...overrides })) {
+    if (value !== undefined && value !== null && String(value) !== "") search.set(key, String(value));
+  }
+  const qs = search.toString();
+  return qs ? `/archive?${qs}` : "/archive";
+}
+
 export default async function ArchivePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tag?: string; source?: string; from?: string; to?: string; layer?: string }>;
+  searchParams: Promise<{ tag?: string; source?: string; from?: string; to?: string; layer?: string; page?: string; sort?: string }>;
 }) {
   if (!(await isAdminSession())) return <AdminLogin />;
 
@@ -52,6 +68,13 @@ export default async function ArchivePage({
       { label: "Last 30 days", href: `/archive?from=${isoDaysAgo(30)}` },
       { label: "All", href: "/archive" },
     ];
+
+    // listReports() is newest-first; reverse for oldest-first.
+    const sort = params.sort === "oldest" ? "oldest" : "newest";
+    const sorted = sort === "oldest" ? [...filtered].reverse() : filtered;
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    const currentPage = Math.min(Math.max(1, Number(params.page) || 1), totalPages);
+    const pageItems = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
     return (
       <AppShell>
@@ -95,13 +118,24 @@ export default async function ArchivePage({
             </Form>
           </Card>
 
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} report{filtered.length === 1 ? "" : "s"}
-            {activeFilters.length > 0 ? ` — filtered by ${activeFilters.join(", ")}` : ""}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              {sorted.length} report{sorted.length === 1 ? "" : "s"}
+              {activeFilters.length > 0 ? ` — filtered by ${activeFilters.join(", ")}` : ""}
+              {totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ""}
+            </p>
+            {sorted.length > 1 ? (
+              <Link
+                href={archiveHref(params, { sort: sort === "oldest" ? undefined : "oldest", page: undefined })}
+                className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+              >
+                {sort === "oldest" ? "Newest first" : "Oldest first"}
+              </Link>
+            ) : null}
+          </div>
 
           <div className="grid gap-4">
-            {filtered.map((report) => {
+            {pageItems.map((report) => {
               const tags = uniqueTags(report.tags).slice(0, 4);
 
               return (
@@ -133,8 +167,24 @@ export default async function ArchivePage({
                 </Card>
               );
             })}
-            {filtered.length === 0 ? <p className="text-sm text-muted-foreground">No reports match those filters.</p> : null}
+            {sorted.length === 0 ? <p className="text-sm text-muted-foreground">No reports match those filters.</p> : null}
           </div>
+
+          {totalPages > 1 ? (
+            <nav aria-label="Pagination" className="flex items-center justify-between gap-2">
+              {currentPage > 1 ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={archiveHref(params, { page: currentPage - 1 })}>← Previous</Link>
+                </Button>
+              ) : <span />}
+              <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
+              {currentPage < totalPages ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={archiveHref(params, { page: currentPage + 1 })}>Next →</Link>
+                </Button>
+              ) : <span />}
+            </nav>
+          ) : null}
         </div>
       </AppShell>
     );

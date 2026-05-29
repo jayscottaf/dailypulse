@@ -6,10 +6,38 @@ import { getDb } from "@/db/client";
 import { sources } from "@/db/schema";
 import { isAdminSession } from "@/lib/page-auth";
 import { resolveRssUrl } from "@/lib/source-roster";
+import { lookupChannelIdByHandle } from "@/lib/youtube-api";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
 async function assertAdmin() {
   if (!(await isAdminSession())) throw new Error("Unauthorized.");
+}
+
+export type ResolveResult = ActionResult & { channelId?: string };
+
+// Look up a YouTube channel ID from an @handle via the Data API. Returns the id
+// for the form to fill in. No-ops gracefully when YOUTUBE_API_KEY is unset
+// (lookupChannelIdByHandle returns null in that case).
+export async function resolveHandle(handle: string): Promise<ResolveResult> {
+  try {
+    await assertAdmin();
+    const trimmed = handle.trim();
+    if (!trimmed) return { ok: false, message: "Enter a handle first (e.g. @PBoyle)." };
+
+    const channelId = await lookupChannelIdByHandle(trimmed);
+    if (!channelId) {
+      return {
+        ok: false,
+        message: process.env.YOUTUBE_API_KEY
+          ? `No channel found for "${trimmed}".`
+          : "Set YOUTUBE_API_KEY to resolve handles automatically.",
+      };
+    }
+
+    return { ok: true, message: `Resolved to ${channelId}.`, channelId };
+  } catch (error) {
+    return { ok: false, message: `Resolve failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
 }
 
 export async function saveSource(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {

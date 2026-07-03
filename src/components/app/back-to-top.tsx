@@ -7,17 +7,27 @@ import { cn } from "@/lib/utils";
 // Long report/archive pages have no other way back up besides manual
 // scrolling. Show a floating button once the user has scrolled past a
 // threshold; clicking it scrolls smoothly back to the top of the page.
-export function BackToTop({ threshold = 600 }: { threshold?: number }) {
+//
+// Hidden again near the very bottom of the page: both the report page and
+// archive have real controls (prev/next report nav, pagination) in that
+// bottom-right corner, and a fixed button sitting on top of them would
+// silently swallow clicks meant for those controls.
+export function BackToTop({ threshold = 600, bottomMargin = 220 }: { threshold?: number; bottomMargin?: number }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     function onScroll() {
-      setVisible(window.scrollY > threshold);
+      const distanceFromBottom = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+      setVisible(window.scrollY > threshold && distanceFromBottom > bottomMargin);
     }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [threshold, bottomMargin]);
 
   return (
     <button

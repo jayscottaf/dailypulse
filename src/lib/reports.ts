@@ -61,8 +61,15 @@ export async function generateDailyReport(reportDate = todayIso()) {
   }
 }
 
+// Sorted by calendar date (matching adjacentReports' definition of "latest"),
+// not generatedAt — otherwise regenerating an older day's report after a newer
+// one already exists would make the home page redirect land on the older day.
 export async function latestReport() {
-  const [report] = await getDb().select().from(dailyReports).orderBy(desc(dailyReports.generatedAt)).limit(1);
+  const [report] = await getDb()
+    .select()
+    .from(dailyReports)
+    .orderBy(desc(dailyReports.date), desc(dailyReports.generatedAt))
+    .limit(1);
   return report ?? null;
 }
 

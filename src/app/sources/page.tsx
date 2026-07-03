@@ -1,11 +1,11 @@
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listSources } from "@/lib/admin";
 import { isAdminSession } from "@/lib/page-auth";
 import { LAYERS } from "@/lib/source-roster";
+import { SourceCard } from "./source-card";
 import { SourceForm } from "./source-form";
 
 export default async function SourcesPage() {
@@ -25,6 +25,9 @@ export default async function SourcesPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Add channel IDs as you confirm them. Missing IDs are visible and skipped during RSS ingestion.
             </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {sources.length} source{sources.length === 1 ? "" : "s"} - click one to edit.
+            </p>
           </section>
 
           <Card>
@@ -36,19 +39,9 @@ export default async function SourcesPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {sources.map((source) => (
-              <Card key={source.id} id={source.id}>
-                <CardContent className="space-y-4 p-5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={source.youtubeChannelId ? "secondary" : "outline"}>
-                      {source.youtubeChannelId ? "RSS ready" : "Missing channel ID"}
-                    </Badge>
-                    <Badge variant="muted">{LAYERS[source.layer]}</Badge>
-                  </div>
-                  <SourceForm source={source} layers={layers} />
-                </CardContent>
-              </Card>
+              <SourceCard key={source.id} source={source} layers={layers} />
             ))}
           </div>
         </div>

@@ -1,10 +1,8 @@
 import Form from "next/form";
 import Link from "next/link";
-import { Suspense } from "react";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
 import { BackToTop } from "@/components/app/back-to-top";
-import { ScrollRestore } from "@/components/app/scroll-restore";
 import { SetupPanel } from "@/components/app/setup-panel";
 import { TagLink } from "@/components/app/tag-link";
 import { Button } from "@/components/ui/button";
@@ -26,6 +24,15 @@ function isoDaysAgo(days: number) {
 
 // Build an /archive URL that preserves current filters, applying overrides.
 // undefined/"" overrides drop that param (e.g. resetting page or clearing sort).
+//
+// Always appends #archive-top: Next's <Link> only auto-scrolls to top when the
+// target Page element isn't already visible in the viewport, which never
+// triggers here since the list fills the viewport — pagination/sort clicks
+// otherwise leave the user at their old scroll offset. A hash-anchor jump is
+// native browser behavior, independent of Next's scroll-preservation heuristic
+// (confirmed live: a useEffect/rAF/setTimeout-based scrollTo(0) reliably lost
+// this race, since Next's own post-navigation scroll handling runs after and
+// overwrites it — the anchor jump sidesteps that entirely).
 function archiveHref(
   params: Record<string, string | undefined>,
   overrides: Record<string, string | number | undefined>,
@@ -35,7 +42,7 @@ function archiveHref(
     if (value !== undefined && value !== null && String(value) !== "") search.set(key, String(value));
   }
   const qs = search.toString();
-  return qs ? `/archive?${qs}` : "/archive";
+  return (qs ? `/archive?${qs}` : "/archive") + "#archive-top";
 }
 
 export default async function ArchivePage({
@@ -67,9 +74,9 @@ export default async function ArchivePage({
     ].filter(Boolean);
 
     const presets: { label: string; href: string }[] = [
-      { label: "Last 7 days", href: `/archive?from=${isoDaysAgo(7)}` },
-      { label: "Last 30 days", href: `/archive?from=${isoDaysAgo(30)}` },
-      { label: "All", href: "/archive" },
+      { label: "Last 7 days", href: `/archive?from=${isoDaysAgo(7)}#archive-top` },
+      { label: "Last 30 days", href: `/archive?from=${isoDaysAgo(30)}#archive-top` },
+      { label: "All", href: "/archive#archive-top" },
     ];
 
     // listReports() is newest-first; reverse for oldest-first.
@@ -81,7 +88,7 @@ export default async function ArchivePage({
 
     return (
       <AppShell>
-        <div className="space-y-6">
+        <div id="archive-top" className="space-y-6 scroll-mt-24">
           <section>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Archive</p>
             <h1 className="mt-2 text-3xl font-semibold">Daily reports</h1>
@@ -106,7 +113,7 @@ export default async function ArchivePage({
               </CardContent>
               <div className="flex flex-wrap items-center gap-2 px-5 pb-5">
                 <Button type="submit" size="sm">Apply filters</Button>
-                <Button asChild size="sm" variant="ghost"><Link href="/archive">Clear</Link></Button>
+                <Button asChild size="sm" variant="ghost"><Link href="/archive#archive-top">Clear</Link></Button>
                 <span className="text-muted-foreground">·</span>
                 {presets.map((preset) => (
                   <Link
@@ -190,9 +197,6 @@ export default async function ArchivePage({
           ) : null}
         </div>
         <BackToTop />
-        <Suspense fallback={null}>
-          <ScrollRestore />
-        </Suspense>
       </AppShell>
     );
   } catch (error) {

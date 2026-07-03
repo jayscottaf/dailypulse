@@ -2,6 +2,8 @@ import Form from "next/form";
 import Link from "next/link";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
+import { BackToTop } from "@/components/app/back-to-top";
+import { ScrollTopLink } from "@/components/app/scroll-top-link";
 import { SetupPanel } from "@/components/app/setup-panel";
 import { TagLink } from "@/components/app/tag-link";
 import { Button } from "@/components/ui/button";
@@ -103,16 +105,16 @@ export default async function ArchivePage({
               </CardContent>
               <div className="flex flex-wrap items-center gap-2 px-5 pb-5">
                 <Button type="submit" size="sm">Apply filters</Button>
-                <Button asChild size="sm" variant="ghost"><Link href="/archive">Clear</Link></Button>
+                <Button asChild size="sm" variant="ghost"><ScrollTopLink href="/archive">Clear</ScrollTopLink></Button>
                 <span className="text-muted-foreground">·</span>
                 {presets.map((preset) => (
-                  <Link
+                  <ScrollTopLink
                     key={preset.label}
                     href={preset.href}
                     className="rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition hover:border-accent/70 hover:text-accent"
                   >
                     {preset.label}
-                  </Link>
+                  </ScrollTopLink>
                 ))}
               </div>
             </Form>
@@ -125,12 +127,12 @@ export default async function ArchivePage({
               {totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ""}
             </p>
             {sorted.length > 1 ? (
-              <Link
+              <ScrollTopLink
                 href={archiveHref(params, { sort: sort === "oldest" ? undefined : "oldest", page: undefined })}
                 className="text-sm font-medium text-accent underline-offset-4 hover:underline"
               >
                 {sort === "oldest" ? "Newest first" : "Oldest first"}
-              </Link>
+              </ScrollTopLink>
             ) : null}
           </div>
 
@@ -174,18 +176,19 @@ export default async function ArchivePage({
             <nav aria-label="Pagination" className="flex items-center justify-between gap-2">
               {currentPage > 1 ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link href={archiveHref(params, { page: currentPage - 1 })}>← Previous</Link>
+                  <ScrollTopLink href={archiveHref(params, { page: currentPage - 1 })}>← Previous</ScrollTopLink>
                 </Button>
               ) : <span />}
               <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
               {currentPage < totalPages ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link href={archiveHref(params, { page: currentPage + 1 })}>Next →</Link>
+                  <ScrollTopLink href={archiveHref(params, { page: currentPage + 1 })}>Next →</ScrollTopLink>
                 </Button>
               ) : <span />}
             </nav>
           ) : null}
         </div>
+        <BackToTop />
       </AppShell>
     );
   } catch (error) {

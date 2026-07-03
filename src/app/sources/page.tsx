@@ -1,12 +1,11 @@
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
 import { SetupPanel } from "@/components/app/setup-panel";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listSources } from "@/lib/admin";
 import { isAdminSession } from "@/lib/page-auth";
 import { LAYERS } from "@/lib/source-roster";
+import { AddSourceCard } from "./add-source-card";
 import { SourceCard } from "./source-card";
-import { SourceForm } from "./source-form";
 
 export default async function SourcesPage() {
   if (!(await isAdminSession())) return <AdminLogin />;
@@ -30,14 +29,7 @@ export default async function SourcesPage() {
             </p>
           </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Add source</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SourceForm source={null} layers={layers} />
-            </CardContent>
-          </Card>
+          <AddSourceCard layers={layers} />
 
           <div className="grid gap-3">
             {sources.map((source) => (

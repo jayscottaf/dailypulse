@@ -12,6 +12,25 @@ import { normalizeSearchQuery, searchAll } from "@/lib/search";
 
 const EXAMPLE_QUERIES = ["macro liquidity", "Tesla FSD", "AI agents", "bond yields", "Model Y"];
 
+function ExampleQueries({ label }: { label: string }) {
+  return (
+    <div className="text-sm text-muted-foreground">
+      <p>{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {EXAMPLE_QUERIES.map((example) => (
+          <Link
+            key={example}
+            href={`/search?q=${encodeURIComponent(example)}`}
+            className="rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition hover:border-accent/70 hover:text-accent"
+          >
+            {example}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   if (!(await isAdminSession())) return <AdminLogin />;
 
@@ -41,25 +60,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               <span className="font-medium text-foreground">&ldquo;{normalized}&rdquo;</span>
             </p>
           ) : (
-            <div className="text-sm text-muted-foreground">
-              <p>Try a topic:</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {EXAMPLE_QUERIES.map((example) => (
-                  <Link
-                    key={example}
-                    href={`/search?q=${encodeURIComponent(example)}`}
-                    className="rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition hover:border-accent/70 hover:text-accent"
-                  >
-                    {example}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <ExampleQueries label="Try a topic:" />
           )}
 
           <div className="grid gap-3">
             {normalized && results.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No results found. Try broader or different terms.</p>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">No results found. Try broader or different terms.</p>
+                <ExampleQueries label="Or try a topic:" />
+              </div>
             ) : null}
             {results.map((result) => (
               <Link key={`${result.type}-${result.id}`} href={result.href}>

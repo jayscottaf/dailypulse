@@ -9,6 +9,26 @@ import { adminStats } from "@/lib/admin";
 import { isAdminSession } from "@/lib/page-auth";
 import { formatReportDate } from "@/lib/slug";
 
+// Recent errors are timestamped absolutely by default, which requires mental
+// date math to judge staleness. Render relative time instead ("3 days ago") so
+// it's obvious at a glance whether an error is current or old history.
+function relativeTime(date: Date) {
+  const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const divisions: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["year", 60 * 60 * 24 * 365],
+    ["month", 60 * 60 * 24 * 30],
+    ["day", 60 * 60 * 24],
+    ["hour", 60 * 60],
+    ["minute", 60],
+  ];
+  for (const [unit, unitSeconds] of divisions) {
+    if (Math.abs(seconds) >= unitSeconds) {
+      return new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(Math.round(seconds / unitSeconds), unit);
+    }
+  }
+  return "just now";
+}
+
 // Error messages are often raw zod issue arrays; render them as readable text.
 function humanizeError(message: string) {
   try {
@@ -117,7 +137,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   <div key={error.id} className="rounded-md border border-border bg-muted/40 p-3 text-sm">
                     <p className="font-medium">{error.context}</p>
                     <p className="text-muted-foreground">{humanizeError(error.message)}</p>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">{error.createdAt.toLocaleString()}</p>
+                    <p className="mt-1 font-mono text-xs text-muted-foreground" title={error.createdAt.toLocaleString()}>
+                      {relativeTime(error.createdAt)}
+                    </p>
                   </div>
                 ))
               )}

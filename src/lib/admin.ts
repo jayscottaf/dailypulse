@@ -6,6 +6,10 @@ export async function adminStats() {
   const db = getDb();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  // Scope "Recent errors" to the last 7 days so resolved, weeks-old errors don't
+  // sit on the dashboard indefinitely looking like an active problem.
+  const errorWindowStart = new Date();
+  errorWindowStart.setDate(errorWindowStart.getDate() - 7);
 
   const [[lastRun], [lastReport], [sourceCount], [videosToday], [reportsCount], transcriptCounts, recentErrors] =
     await Promise.all([
@@ -18,7 +22,12 @@ export async function adminStats() {
         .select({ status: videos.transcriptStatus, value: count() })
         .from(videos)
         .groupBy(videos.transcriptStatus),
-      db.select().from(errorLogs).orderBy(desc(errorLogs.createdAt)).limit(8),
+      db
+        .select()
+        .from(errorLogs)
+        .where(gte(errorLogs.createdAt, errorWindowStart))
+        .orderBy(desc(errorLogs.createdAt))
+        .limit(8),
     ]);
 
   return {

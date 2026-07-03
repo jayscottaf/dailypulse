@@ -5,22 +5,18 @@ import { eq } from "drizzle-orm";
 import { ExternalLink } from "lucide-react";
 import { CopyReportButton } from "@/components/app/copy-report-button";
 import { AppShell } from "@/components/app/app-shell";
+import { BackToTop } from "@/components/app/back-to-top";
 import { SetupPanel } from "@/components/app/setup-panel";
 import { TagLink } from "@/components/app/tag-link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { dailyReports, reportVideos, sources, videos } from "@/db/schema";
 import type { Source, Video } from "@/db/schema";
-import { feedbackFingerprint, feedbackForReport, type FeedbackVote } from "@/lib/feedback";
-import { isAdminSession } from "@/lib/page-auth";
 import { parseReportStructure, type ReportStructure } from "@/lib/report-structure";
 import { adjacentReports } from "@/lib/reports";
-import { LAYERS } from "@/lib/source-roster";
 import { formatReportDate } from "@/lib/slug";
 import { archiveTagHref, uniqueTags } from "@/lib/tags";
-import { FeedbackControls } from "./feedback-controls";
 
 type SourceVideo = {
   video: Video;
@@ -77,17 +73,9 @@ function SourceChips({
 function StructuredReport({
   structure,
   sourceMap,
-  reportId,
-  reportTags,
-  feedbackMap,
-  canVote,
 }: {
   structure: ReportStructure;
   sourceMap: Map<string, SourceVideo>;
-  reportId: string;
-  reportTags: string[];
-  feedbackMap: Map<string, FeedbackVote>;
-  canVote: boolean;
 }) {
   return (
     <div className="space-y-9">
@@ -103,26 +91,6 @@ function StructuredReport({
                     <li key={`${subsection.title}-${index}`}>
                       <span>{item.text}</span>
                       <SourceChips sourceVideoIds={item.sourceVideoIds} sourceMap={sourceMap} />
-                      {canVote ? (
-                        <FeedbackControls
-                          selectedVote={feedbackMap.get(
-                            feedbackFingerprint({
-                              reportId,
-                              sectionTitle: section.title,
-                              subsectionTitle: subsection.title,
-                              itemIndex: index,
-                              itemText: item.text,
-                            }),
-                          )}
-                          reportId={reportId}
-                          sectionTitle={section.title}
-                          subsectionTitle={subsection.title}
-                          itemIndex={index}
-                          itemText={item.text}
-                          sourceVideoIds={item.sourceVideoIds}
-                          tags={reportTags}
-                        />
-                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -151,8 +119,6 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
       .where(eq(reportVideos.reportId, report.id));
     const structuredReport = parseReportStructure(report.structuredJson);
     const sourceMap = new Map(usedVideos.map((row) => [row.video.id, row]));
-    const canVote = await isAdminSession();
-    const feedbackMap = canVote ? await feedbackForReport(report.id) : new Map<string, FeedbackVote>();
     const tags = uniqueTags(report.tags);
     const topicTrailTags = tags.slice(0, 5);
     const hiddenTagCount = Math.max(tags.length - topicTrailTags.length, 0);
@@ -243,14 +209,7 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
             <CardContent className="p-5 sm:p-8">
               <div className="prose-pulse max-w-none">
                 {structuredReport ? (
-                  <StructuredReport
-                    structure={structuredReport}
-                    sourceMap={sourceMap}
-                    reportId={report.id}
-                    reportTags={report.tags}
-                    feedbackMap={feedbackMap}
-                    canVote={canVote}
-                  />
+                  <StructuredReport structure={structuredReport} sourceMap={sourceMap} />
                 ) : (
                   <ReactMarkdown
                     components={{
@@ -277,43 +236,8 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
               </CardContent>
             </Card>
           ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Source attribution</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {usedVideos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No source videos were attached to this report.</p>
-              ) : (
-                usedVideos.map(({ video, source }) => (
-                  <div key={video.id} className="rounded-md border border-border bg-muted/30 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="muted">{LAYERS[source.layer]}</Badge>
-                      <Badge variant="outline">{video.transcriptStatus}</Badge>
-                    </div>
-                    <h3 className="mt-2 font-semibold">
-                      <Link href={`/videos/${video.id}`} className="transition hover:text-accent">
-                        {video.title}
-                      </Link>
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {source.displayName} - {video.publishedAt.toLocaleDateString()}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <a href={video.url} target="_blank" rel="noreferrer"><ExternalLink /> Open video</a>
-                      </Button>
-                      <Button asChild size="sm" variant="ghost">
-                        <Link href={`/videos/${video.id}`}>Video detail</Link>
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
         </article>
+        <BackToTop />
       </AppShell>
     );
   } catch (error) {

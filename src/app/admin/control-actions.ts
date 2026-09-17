@@ -20,7 +20,7 @@ export async function runIngestionAction(): Promise<ActionResult> {
     await assertAdmin();
     const result = await runIngestion();
     revalidatePath("/admin");
-    return `Ingest complete — ${result.videosCreated} new, ${result.videosSkipped} skipped (${result.videosFound} found).`;
+    return `${result.failedSources ? `Ingest incomplete (${result.failedSources} source checks failed)` : "Ingest complete"} — ${result.videosCreated} new, ${result.videosSkipped} skipped (${result.videosFound} found).`;
   });
 }
 
@@ -42,8 +42,8 @@ export async function sendTodayEmailAction(): Promise<ActionResult> {
     const result = await sendReportEmail(report.id);
     revalidatePath("/admin");
     return result.skipped
-      ? "Email already sent for the latest report (not resent)."
-      : "Email sent to the configured recipient.";
+      ? `Email skipped: ${result.reason}`
+      : result.kind === "notice" ? "Service notice accepted by the email provider." : "Briefing accepted by the email provider.";
   });
 }
 

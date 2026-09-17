@@ -54,3 +54,11 @@ Primary references: [NewsBlur briefing behavior](https://forum.newsblur.com/t/da
 5. Consider broader RSS/official-source ingestion after the core reading flow is useful. Adding more feeds before improving ranking will increase noise.
 
 Acceptance checks: important headlines appear in the first viewport; a reader can catch up in two minutes; one source does not appear as several separate stories; yesterday's stories are hidden or labeled unless materially updated; missing transcripts are visible; uncertainty survives into the brief; saving and feedback work independently; mobile cards and reading details are easy to use. Compare the redesigned version against the same source set before deciding on a full migration.
+
+## Implementation and validation
+
+The review above records the original behavior. The authorized redesign was implemented in five separately tested and pushed fixes: source evidence, ranked briefings and coverage tracking, the brief/feed interface, reading state and preferences, and email delivery.
+
+Final validation: 34 tests passed, including disposable PostgreSQL-compatible database tests for independent reading state, provider rejection/retry behavior, quiet-day suppression, service-notice suppression, and recovery of missed feed updates. Resend and external feed calls were mocked in integration tests; no real test email was sent. ESLint, TypeScript and the production build passed. Browser checks covered topic filters, source details, Save/Read persistence, preference saving, and desktop/mobile layouts including the email preview.
+
+Production verification confirmed that the home page opens the latest report and the new reading interface loads against existing data. Current inspected videos have unavailable transcripts, so they correctly show title-only previews. A substantive briefing email requires new transcript-backed summaries. Existing archived reports remain available under a collapsed caution label.

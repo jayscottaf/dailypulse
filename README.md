@@ -1,6 +1,6 @@
 # Jason Daily Pulse
 
-Private daily intelligence dashboard for Jason Mergl. The app ingests a fixed roster of YouTube RSS sources, summarizes new videos with OpenAI, generates a daily personalized briefing, archives every report, and emails the landing page link through Resend.
+Private daily intelligence dashboard for Jason Mergl. The app ingests a fixed roster of YouTube RSS sources, summarizes new videos with OpenAI, generates a daily personalized briefing, archives every report, and emails the short briefing itself through Resend.
 
 ## Stack
 
@@ -8,7 +8,7 @@ Private daily intelligence dashboard for Jason Mergl. The app ingests a fixed ro
 - shadcn-style owned UI components
 - PostgreSQL on Neon or Vercel Postgres
 - Drizzle ORM and migrations
-- OpenAI API for video summaries and daily report generation
+- OpenAI API for transcript-backed video summaries
 - Resend for email delivery
 - Vercel Cron Jobs for the daily pipeline
 
@@ -108,17 +108,17 @@ npm run db:seed
 }
 ```
 
-Vercel Cron calls `/api/cron/daily-pulse` in production. The route validates `Authorization: Bearer CRON_SECRET`, runs ingestion, generates the report, sends email, and returns JSON status.
+Vercel Cron runs `/api/cron/ingest` at 11:00 UTC and `/api/cron/report` at 11:20 UTC. Both validate `Authorization: Bearer CRON_SECRET`. The report job generates the briefing and evaluates whether an email should be sent. The combined `/api/cron/daily-pulse` endpoint remains available for manual use.
 
 ## Report Flow
 
 1. Ingestion fetches active source RSS feeds.
 2. Videos are deduplicated by `youtubeVideoId`.
-3. Transcript handling attempts the optional transcript service, otherwise falls back to metadata.
-4. OpenAI creates one saved summary per new/changed video.
-5. The daily report uses video summaries from the last 24-72 hours.
+3. Transcript handling attempts the optional transcript service. Without a transcript, the video remains a clearly labeled title preview.
+4. OpenAI creates a saved summary from available transcripts, preserving attribution and uncertainty. Metadata previews do not invoke the model.
+5. The daily brief deterministically selects up to three or five new or updated stories from a 72-hour window, using prior coverage and reading preferences.
 6. The final report is saved as markdown and structured JSON.
-7. Resend emails Jason a short preview and full report link.
+7. Resend emails the selected transcript-backed stories in HTML and plain text, preserving the same summaries and source links. Quiet, metadata-only and already-covered briefings are skipped. Incomplete or stale source checks produce a separate service notice, once per interruption until recovery.
 
 ## Routes
 
@@ -154,3 +154,12 @@ Covered utility boundaries:
 - YouTube Data API should be used sparingly because of quota.
 - This is a private single-user MVP, not a multi-user SaaS yet.
 - Vector embeddings are not included in the MVP; the schema and search layer can be extended later.
+
+
+### Reading and email previews
+
+Today offers a short brief followed by a topic-filtered card/list feed. Saved bookmarks, read state and “less like this” feedback are independent. Settings controls topics, interests, muted sources, brief length, layout and appearance. Preferences affect the next generated briefing and email; they do not rewrite archived summaries.
+
+`/email-preview` renders the latest report's email and plain-text version without sending. A production send requires a public HTTPS `APP_BASE_URL`. Provider acceptance is recorded only after Resend returns an ID; errors remain retryable. A deterministic content-based idempotency key guards retries within Resend's deduplication window. The app also skips reports with an existing `emailSentAt`.
+
+Optional integration tests use a disposable local PostgreSQL-compatible database at `127.0.0.1:55432` only. Initialize it with `bootstrapDatabase`, run `scripts/seed-browser-test.ts`, then run `RUN_DB_TESTS=1 npm test` with `DATABASE_URL` set. Email and feed integrations mock external providers and send no real messages.

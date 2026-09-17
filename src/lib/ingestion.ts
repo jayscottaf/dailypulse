@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { ingestionRuns, sources, videoSummaries, videos } from "@/db/schema";
 import { summarizeVideo } from "@/lib/ai";
@@ -8,13 +8,6 @@ import { fetchYoutubeRssVideos, filterNewVideos } from "@/lib/rss";
 import { resolveRssUrl } from "@/lib/source-roster";
 import { fetchTranscript } from "@/lib/transcripts";
 import { lookupChannelIdByHandle } from "@/lib/youtube-api";
-
-function fallbackSinceDate(lastSuccess?: Date | null) {
-  if (lastSuccess) return lastSuccess;
-  const since = new Date();
-  since.setDate(since.getDate() - 7);
-  return since;
-}
 
 type IngestionOptions = {
   summarize?: boolean;
@@ -27,16 +20,12 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
   let videosFound = 0;
   let videosCreated = 0;
   let videosSkipped = 0;
+  const failedSourceIds = new Set<string>();
 
   try {
-    const [lastSuccess] = await db
-      .select({ finishedAt: ingestionRuns.finishedAt })
-      .from(ingestionRuns)
-      .where(and(eq(ingestionRuns.status, "success"), isNull(ingestionRuns.errorMessage)))
-      .orderBy(desc(ingestionRuns.finishedAt))
-      .limit(1);
-    const existingVideos = await db.select({ id: videos.id }).from(videos).limit(1);
-    const since = existingVideos.length > 0 ? fallbackSinceDate(lastSuccess?.finishedAt) : fallbackSinceDate();
+    // Revisit a bounded window so a failed source does not lose its updates
+    // when other sources succeed. Existing IDs are skipped before transcript work.
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const activeSources = await db.select().from(sources).where(eq(sources.isActive, true));
 
     for (const source of activeSources) {
@@ -52,6 +41,7 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
         }
       }
       if (!rssUrl) {
+        failedSourceIds.add(source.id);
         videosSkipped += 1;
         continue;
       }
@@ -60,7 +50,10 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
         const feedVideos = filterNewVideos(await fetchYoutubeRssVideos(rssUrl), since);
         videosFound += feedVideos.length;
 
+        const existing = feedVideos.length ? await db.select({ id: videos.youtubeVideoId }).from(videos).where(inArray(videos.youtubeVideoId, feedVideos.map(video => video.youtubeVideoId))) : [];
+        const knownIds = new Set(existing.map(video => video.id));
         for (const feedVideo of feedVideos) {
+          if (knownIds.has(feedVideo.youtubeVideoId)) { videosSkipped += 1; continue; }
           const transcript = await fetchTranscript(feedVideo.youtubeVideoId);
           if (transcript.status === "error") {
             await logError("transcript fetch", new Error(transcript.error), {
@@ -93,6 +86,7 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
           }
         }
       } catch (error) {
+        failedSourceIds.add(source.id);
         await logError("RSS fetch", error, { sourceId: source.id, source: source.displayName, rssUrl });
       }
     }
@@ -104,7 +98,9 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
     await db
       .update(ingestionRuns)
       .set({
-        status: "success",
+        status: failedSourceIds.size ? "partial" : "success",
+        errorMessage: failedSourceIds.size ? `${failedSourceIds.size} source checks failed.` : null,
+        metadata: { activeSources: activeSources.length, failedSourceIds: [...failedSourceIds] },
         finishedAt: new Date(),
         videosFound,
         videosCreated,
@@ -112,7 +108,7 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
       })
       .where(eq(ingestionRuns.id, run.id));
 
-    return { ok: true, runId: run.id, videosFound, videosCreated, videosSkipped };
+    return { ok: failedSourceIds.size === 0, runId: run.id, videosFound, videosCreated, videosSkipped, failedSources: failedSourceIds.size };
   } catch (error) {
     await logError("cron execution", error, { runId: run.id });
     await db
@@ -188,7 +184,7 @@ export async function videosForReport(hours = 72, reportDate?: string) {
     .select({ video: videos, source: sources, summary: videoSummaries })
     .from(videos)
     .innerJoin(sources, eq(videos.sourceId, sources.id))
-    .innerJoin(videoSummaries, eq(videoSummaries.videoId, videos.id))
+    .leftJoin(videoSummaries, eq(videoSummaries.videoId, videos.id))
     .where(and(eq(sources.isActive, true), gte(videos.publishedAt, since), lte(videos.publishedAt, until), inArray(sources.layer, ["macro_financial", "deep_tech_ai", "tesla_ownership"])))
     .orderBy(desc(videos.publishedAt));
 

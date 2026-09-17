@@ -1,9 +1,10 @@
+import { sourceChecksIncomplete } from "@/lib/source-health";
 import { readerContext } from "@/lib/reader-store";
 import { revalidatePath } from "next/cache";
 import { priorCoverage } from "@/lib/briefing";
 import { and, asc, desc, eq, gt, gte, lt } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { dailyReports, reportVideos, videos } from "@/db/schema";
+import { dailyReports, ingestionRuns, reportVideos, videos } from "@/db/schema";
 import { generateDailyReportMarkdown } from "@/lib/ai";
 import { logError } from "@/lib/errors";
 import { buildFeedbackProfile } from "@/lib/feedback";
@@ -16,10 +17,10 @@ export async function generateDailyReport(reportDate = todayIso()) {
   const since = new Date(`${reportDate}T00:00:00Z`);
   since.setUTCDate(since.getUTCDate() - 14);
   const previous = await db.select().from(dailyReports).where(and(lt(dailyReports.date, reportDate), gte(dailyReports.date, since.toISOString().slice(0, 10)))).orderBy(desc(dailyReports.date));
-  const [feedbackProfile, reader] = await Promise.all([buildFeedbackProfile(), readerContext()]);
+  const [feedbackProfile, reader, [lastRun]] = await Promise.all([buildFeedbackProfile(), readerContext(), db.select().from(ingestionRuns).orderBy(desc(ingestionRuns.startedAt)).limit(1)]);
 
   try {
-    const generated = await generateDailyReportMarkdown(reportDate, reportInput, feedbackProfile, priorCoverage(previous), false, reader);
+    const generated = await generateDailyReportMarkdown(reportDate, reportInput, feedbackProfile, priorCoverage(previous), sourceChecksIncomplete(lastRun), reader);
     const slug = createReportSlug(reportDate);
     const sourceVideoIds = reportInput.map((row) => row.video.id);
 

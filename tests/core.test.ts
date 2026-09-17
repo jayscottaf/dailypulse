@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildEmailPayload, extractTopBullets } from "../src/lib/email";
+import { buildEmailPayload } from "../src/lib/email";
 import { filterNewVideos } from "../src/lib/rss";
 import { normalizeSearchQuery, normalizeSearchRows } from "../src/lib/search";
 import { createReportSlug } from "../src/lib/slug";
@@ -62,10 +62,6 @@ describe("core utilities", () => {
     vi.unstubAllEnvs();
   });
 
-  it("extracts email bullets", () => {
-    expect(extractTopBullets("- one\n- two\n\nbody", 2)).toEqual(["one", "two"]);
-  });
-
   it("builds the report email payload", () => {
     vi.stubEnv("APP_BASE_URL", "https://daily.example.com");
     vi.stubEnv("EMAIL_TO", "jayscottaf@gmail.com");
@@ -87,7 +83,8 @@ describe("core utilities", () => {
     });
 
     expect(payload.to).toBe("jayscottaf@gmail.com");
-    expect(payload.subject).toBe("Jason Daily Pulse — May 27, 2026");
+    expect(payload.sendable).toBe(false);
+    expect(payload.reason).toContain("regeneration");
     expect(payload.reportUrl).toBe("https://daily.example.com/daily-pulse/daily-pulse-2026-05-27");
     vi.unstubAllEnvs();
   });

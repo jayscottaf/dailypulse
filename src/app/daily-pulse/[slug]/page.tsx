@@ -205,6 +205,7 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
             </nav>
           ) : null}
 
+          <p className="rounded-md border border-border p-3 text-sm text-muted-foreground">Archived AI report. Source links do not independently verify its claims. Check the source overview for transcript availability before relying on a claim.</p>
           <Card>
             <CardContent className="p-5 sm:p-8">
               <div className="prose-pulse max-w-none">

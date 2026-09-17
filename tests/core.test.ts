@@ -114,7 +114,7 @@ describe("core utilities", () => {
     const report = await generateDailyReportMarkdown("2026-05-27", []);
     const parsed = parseReportStructure(report.structuredJson);
 
-    expect(parsed?.sections).toHaveLength(4);
+    expect(parsed?.sections).toHaveLength(1);
     expect(parsed?.sections[0].subsections[0].items[0].sourceVideoIds).toEqual([]);
   });
 

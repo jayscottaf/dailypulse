@@ -1,7 +1,8 @@
 import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { ingestionRuns, sources, videoSummaries, videos } from "@/db/schema";
-import { contentHash, buildVideoSummaryInput, summarizeVideo } from "@/lib/ai";
+import { summarizeVideo } from "@/lib/ai";
+import { summaryHash } from "@/lib/evidence";
 import { logError } from "@/lib/errors";
 import { fetchYoutubeRssVideos, filterNewVideos } from "@/lib/rss";
 import { resolveRssUrl } from "@/lib/source-roster";
@@ -139,14 +140,15 @@ export async function summarizeUnsummarizedRecentVideos(force = false, limit = 8
     .from(videos)
     .innerJoin(sources, eq(videos.sourceId, sources.id))
     .leftJoin(videoSummaries, eq(videoSummaries.videoId, videos.id))
-    .where(force ? gte(videos.publishedAt, since) : and(gte(videos.publishedAt, since), isNull(videoSummaries.id)))
+    .where(gte(videos.publishedAt, since))
     .orderBy(desc(videos.publishedAt))
-    .limit(limit);
+    .limit(500);
 
   const summarized: string[] = [];
 
   for (const row of recentVideos) {
-    const hash = contentHash(buildVideoSummaryInput(row.video, row.source));
+    if (summarized.length >= limit) break;
+    const hash = summaryHash(row.video, row.source);
     if (!force && row.summary?.contentHash === hash) continue;
 
     try {

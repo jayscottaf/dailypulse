@@ -13,6 +13,7 @@ import { isAdminSession } from "@/lib/page-auth";
 import { LAYERS } from "@/lib/source-roster";
 import { searchTagHref, uniqueTags } from "@/lib/tags";
 import { extractTimelineLinks } from "@/lib/video-timeline";
+import { sourceEvidence } from "@/lib/evidence";
 import { TranscriptForm } from "./transcript-form";
 
 function SummaryList({ title, items }: { title: string; items: string[] }) {
@@ -49,6 +50,8 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
       return <AppShell><p className="text-sm text-muted-foreground">Video not found.</p></AppShell>;
     }
 
+    const evidence = sourceEvidence(row.video, row.source, row.summary);
+    const summary = evidence.summary;
     const timelineLinks = extractTimelineLinks({
       videoUrl: row.video.url,
       description: row.video.description,
@@ -61,7 +64,7 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
           <section>
             <div className="flex flex-wrap gap-2">
               <Badge variant="muted">{LAYERS[row.source.layer]}</Badge>
-              <Badge variant="outline">{row.video.transcriptStatus}</Badge>
+              <Badge variant="outline">{evidence.label}</Badge>
             </div>
             <h1 className="mt-3 text-3xl font-semibold">{row.video.title}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -73,25 +76,23 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
           </section>
 
           <Card>
-            <CardHeader><CardTitle>Full AI summary</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Source overview</CardTitle></CardHeader>
             <CardContent className="space-y-5">
-              {row.summary ? (
+              {summary ? (
                 <>
-                  <p className="text-sm leading-6 text-muted-foreground">{row.summary.conciseSummary}</p>
-                  {row.summary.tags.length > 0 ? (
+                  <p className="text-sm leading-6 text-muted-foreground">{summary.conciseSummary}</p>
+                  {summary.tags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {uniqueTags(row.summary.tags).map((tag) => (
+                      {uniqueTags(summary.tags).map((tag) => (
                         <TagLink key={tag} tag={tag} href={searchTagHref(tag)} />
                       ))}
                     </div>
                   ) : null}
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                    Jason relevance: <span className="font-semibold text-foreground">{row.summary.relevanceScoreForJason}/100</span>
-                  </div>
-                  <SummaryList title="Key claims" items={row.summary.keyClaims} />
-                  <SummaryList title="Important data points" items={row.summary.importantDataPoints} />
-                  <SummaryList title="Quotes or paraphrases" items={row.summary.quotesOrParaphrases} />
-                  <SummaryList title="Action signals" items={row.summary.actionSignals} />
+                  <p className="text-xs text-muted-foreground">{evidence.basis === "transcript" ? "Summarized from the source transcript. Creator claims are not independently verified." : "No factual summary is available. Open the original video for its contents."}</p>
+                  <SummaryList title="Key claims" items={summary.keyClaims} />
+                  <SummaryList title="Important data points" items={summary.importantDataPoints} />
+                  <SummaryList title="Quotes or paraphrases" items={summary.quotesOrParaphrases} />
+                  <SummaryList title="Action signals" items={summary.actionSignals} />
                 </>
               ) : (
                 <p className="text-muted-foreground">No AI summary saved yet.</p>

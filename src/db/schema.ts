@@ -200,3 +200,16 @@ export type Video = typeof videos.$inferSelect;
 export type VideoSummary = typeof videoSummaries.$inferSelect;
 export type DailyReport = typeof dailyReports.$inferSelect;
 export type ReportFeedback = typeof reportFeedback.$inferSelect;
+
+export const readerPreferences = pgTable("reader_preferences", {
+  id: text("id").primaryKey(),
+  settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
+});
+
+export const storyStates = pgTable("story_states", {
+  videoId: uuid("video_id").primaryKey().references(() => videos.id, { onDelete: "cascade" }),
+  saved: boolean("saved").default(false).notNull(),
+  read: boolean("read").default(false).notNull(),
+  less: boolean("less").default(false).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

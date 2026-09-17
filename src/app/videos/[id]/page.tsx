@@ -1,4 +1,6 @@
 import { eq } from "drizzle-orm";
+import { readerContext } from "@/lib/reader-store";
+import { StoryControls } from "@/components/app/story-controls";
 import { Clock, ExternalLink } from "lucide-react";
 import { AdminLogin } from "@/components/app/admin-login";
 import { AppShell } from "@/components/app/app-shell";
@@ -50,6 +52,7 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
       return <AppShell><p className="text-sm text-muted-foreground">Video not found.</p></AppShell>;
     }
 
+    const reader = await readerContext();
     const evidence = sourceEvidence(row.video, row.source, row.summary);
     const summary = evidence.summary;
     const timelineLinks = extractTimelineLinks({
@@ -127,12 +130,8 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Transcript</CardTitle></CardHeader>
-            <CardContent>
-              <TranscriptForm videoId={row.video.id} defaultValue={row.video.transcriptText ?? ""} />
-            </CardContent>
-          </Card>
+          <StoryControls videoId={row.video.id} initial={reader.states[row.video.id]} />
+          <details className="rounded-md border border-border p-5"><summary className="cursor-pointer text-sm font-medium">View or edit transcript</summary><div className="mt-4"><TranscriptForm videoId={row.video.id} defaultValue={row.video.transcriptText ?? ""} /></div></details>
         </div>
       </AppShell>
     );

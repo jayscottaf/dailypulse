@@ -1,3 +1,4 @@
+import type { ReaderContext } from "@/lib/reader-preferences";
 import type { FeedbackProfile } from "@/lib/feedback";
 import type { DailyReport } from "@/db/schema";
 import type { ReportInputVideo } from "@/lib/ai";
@@ -36,12 +37,15 @@ export function sameStory(a: Story, b: Story) {
   return overlap / new Set([...left, ...right]).size >= 0.8;
 }
 
-export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string, string>(), sourceError = false, feedback?: FeedbackProfile): Briefing {
-  const candidates: Story[] = rows.map(({ video, source, summary }) => {
+export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string, string>(), sourceError = false, feedback?: FeedbackProfile, reader?: ReaderContext): Briefing {
+  const candidates: Story[] = rows.filter(({ source }) => !reader || (reader.preferences.topics.includes(source.layer) && !reader.preferences.mutedSourceIds.includes(source.id))).map(({ video, source, summary }) => {
     const evidence = sourceEvidence(video, source, summary);
     const hash = summaryHash(video, source);
     const prior = covered.get(video.id);
     const tags = evidence.summary.tags.map(tag => tag.toLowerCase());
+    const interests = reader?.preferences.interests.toLowerCase().split(",").map(value => value.trim()).filter(Boolean) ?? [];
+    const interestBoost = interests.some(interest => `${video.title} ${evidence.summary.conciseSummary}`.toLowerCase().includes(interest)) ? 20 : 0;
+    const sourcePenalty = reader?.lessSourceIds.includes(source.id) ? 40 : 0;
     const preference = (feedback?.likedTags.some(tag => tags.includes(tag.value.toLowerCase())) ? 10 : 0) - (feedback?.dislikedTags.some(tag => tags.includes(tag.value.toLowerCase())) ? 10 : 0);
     const novelty = !prior ? "new" : prior === hash || evidence.basis === "metadata" ? "seen" : "updated";
     return {
@@ -49,8 +53,8 @@ export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string
       summary: evidence.summary.conciseSummary,
       details: evidence.summary.keyClaims.slice(0, 3), topic: source.layer,
       evidence: evidence.basis, novelty, contentHash: hash,
-      score: (evidence.basis === "transcript" ? 100 : 0) + (novelty !== "seen" ? 30 : 0) + Math.min(100, evidence.summary.relevanceScoreForJason) + preference,
-      sources: [{ id: video.id, name: source.displayName.split("/")[0].trim(), url: video.url, publishedAt: video.publishedAt.toISOString(), thumbnailUrl: video.thumbnailUrl, contentHash: hash }],
+      score: (evidence.basis === "transcript" ? 100 : 0) + (novelty !== "seen" ? 30 : 0) + Math.min(100, evidence.summary.relevanceScoreForJason) + preference + interestBoost - sourcePenalty,
+      sources: [{ id: video.id, channelId: source.id, name: source.displayName.split("/")[0].trim(), url: video.url, publishedAt: video.publishedAt.toISOString(), thumbnailUrl: video.thumbnailUrl, contentHash: hash }],
     };
   });
   candidates.sort((a, b) => b.score - a.score || b.sources[0].publishedAt.localeCompare(a.sources[0].publishedAt));
@@ -63,11 +67,11 @@ export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string
       if (existing.novelty === "seen" || candidate.novelty === "seen") existing.novelty = "seen";
     } else stories.push(candidate);
   }
-  const eligible = stories.filter(story => story.evidence === "transcript" && story.novelty !== "seen");
+  const eligible = stories.filter(story => story.evidence === "transcript" && story.novelty !== "seen" && !story.sources.some(source => reader?.states[source.id]?.read || reader?.states[source.id]?.less));
   // Start with one strong story per topic, then fill remaining slots by rank.
   const selected: Story[] = [];
   for (const story of eligible) if (!selected.some(item => item.topic === story.topic)) selected.push(story);
-  for (const story of eligible) if (selected.length < 5 && !selected.includes(story)) selected.push(story);
+  for (const story of eligible) if (selected.length < (reader?.preferences.briefLength ?? 5) && !selected.includes(story)) selected.push(story);
   selected.sort((a, b) => b.score - a.score);
   const status = sourceError ? "source_error" : selected.length ? "ready" : stories.some(s => s.evidence === "metadata" && s.novelty !== "seen") ? "limited" : "quiet";
   const message = status === "source_error" ? "Source checks are incomplete. The feed may be missing updates." : status === "ready" ? `${selected.length} new or updated ${selected.length === 1 ? "story" : "stories"} worth a look.` : status === "limited" ? "New videos to explore. Transcript summaries are not available yet." : "You're caught up. No new transcript-backed stories today.";

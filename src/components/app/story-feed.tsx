@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { StoryControls } from "@/components/app/story-controls";
+import { emptyReaderContext, type ReaderContext } from "@/lib/reader-preferences";
 import { useState } from "react";
 import { ExternalLink, Play, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,10 +18,11 @@ function Thumbnail({ story }: { story: Story }) {
   </div>;
 }
 
-export function StoryFeed({ stories, title = "Explore your feed" }: { stories: Story[]; title?: string }) {
+export function StoryFeed({ stories, title = "Explore your feed", reader = emptyReaderContext }: { stories: Story[]; title?: string; reader?: ReaderContext }) {
   const [topic, setTopic] = useState("all");
-  const [layout, setLayout] = useState<"cards" | "list">("cards");
-  const visible = stories.filter(story => topic === "all" || story.topic === topic);
+  const [layout, setLayout] = useState<"cards" | "list">(reader.preferences.layout);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const visible = stories.filter(story => (topic === "all" || story.topic === topic) && (!unreadOnly || !reader.states[story.id]?.read));
   return <section id="feed" className="scroll-mt-24 space-y-5" aria-label={title}>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-2xl font-semibold tracking-tight">{title}</h2><p className="mt-1 text-sm text-muted-foreground" aria-live="polite">{visible.length} {visible.length === 1 ? "story" : "stories"} · open only what interests you</p></div>
@@ -27,6 +30,7 @@ export function StoryFeed({ stories, title = "Explore your feed" }: { stories: S
     </div>
     <div className="flex flex-wrap gap-2" aria-label="Filter by topic">
       {[["all", "All"], ...Object.entries(TOPICS)].map(([value, label]) => <Button key={value} size="sm" variant={topic === value ? "default" : "outline"} aria-pressed={topic === value} onClick={() => setTopic(value)}>{label}</Button>)}
+      <Button size="sm" variant="outline" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(!unreadOnly)}>Unread only</Button>
     </div>
     <div className={layout === "cards" ? "grid gap-5 sm:grid-cols-2 lg:grid-cols-3" : "space-y-3"}>
       {visible.map(story => <article id={`story-${story.id}`} key={story.id} className="story-card scroll-mt-24 overflow-hidden rounded-xl border border-border bg-card">
@@ -45,9 +49,10 @@ export function StoryFeed({ stories, title = "Explore your feed" }: { stories: S
               {story.sources.map(source => <div key={source.id} className="flex flex-wrap items-center justify-between gap-2"><Link className="underline underline-offset-4" href={`/videos/${source.id}`}>{source.name}</Link>{safeSourceUrl(source.url) ? <a className="inline-flex items-center gap-1 text-accent" href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Watch video <ExternalLink className="size-3" /></a> : null}</div>)}
             </div>
           </details>
+          <StoryControls videoId={story.id} initial={reader.states[story.id]} />
         </div>
       </article>)}
     </div>
-    {visible.length === 0 ? <p className="py-8 text-sm text-muted-foreground">No stories in this topic yet. Try another topic or check back after the next source update.</p> : null}
+    {visible.length === 0 ? <p className="py-8 text-sm text-muted-foreground">{stories.length ? "No stories match these filters. Try All or turn off Unread only." : title === "Saved stories" ? "Save a story from your feed to find it here." : "No stories yet. Check back after the next source update."}</p> : null}
   </section>;
 }

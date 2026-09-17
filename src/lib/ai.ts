@@ -1,3 +1,4 @@
+import type { ReaderContext } from "@/lib/reader-preferences";
 import { buildBriefing, briefingReport } from "@/lib/briefing";
 import crypto from "node:crypto";
 import OpenAI from "openai";
@@ -136,7 +137,8 @@ export async function generateDailyReportMarkdown(
   feedbackProfile?: FeedbackProfile,
   covered = new Map<string, string>(),
   sourceError = false,
+  reader?: ReaderContext,
 ): Promise<GeneratedReportPayload> {
   // Reuse the exact source summaries: a second AI rewrite can lose uncertainty.
-  return briefingReport(reportDate, buildBriefing(videos, covered, sourceError, feedbackProfile));
+  return briefingReport(reportDate, buildBriefing(videos, covered, sourceError, feedbackProfile, reader));
 }

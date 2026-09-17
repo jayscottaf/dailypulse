@@ -11,7 +11,7 @@ export const storySchema = z.object({
   novelty: z.enum(["new", "updated", "seen"]),
   score: z.number(),
   contentHash: z.string(),
-  sources: z.array(z.object({ id: z.string(), name: z.string(), url: z.string().url(), publishedAt: z.string(), thumbnailUrl: z.string().nullable(), contentHash: z.string() })).min(1),
+  sources: z.array(z.object({ id: z.string(), channelId: z.string().optional(), name: z.string(), url: z.string().url(), publishedAt: z.string(), thumbnailUrl: z.string().nullable(), contentHash: z.string() })).min(1),
 });
 export type Story = z.infer<typeof storySchema>;
 export const briefingSchema = z.object({

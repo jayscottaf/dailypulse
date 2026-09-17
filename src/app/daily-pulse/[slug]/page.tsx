@@ -10,7 +10,8 @@ import { StoryFeed } from "@/components/app/story-feed";
 import { getDb } from "@/db/client";
 import { dailyReports } from "@/db/schema";
 import { adjacentReports } from "@/lib/reports";
-import { readingReport } from "@/lib/reading";
+import { readerContext } from "@/lib/reader-store";
+import { readingReport, filterReadingReport } from "@/lib/reading";
 import { briefStories, parseBriefing } from "@/lib/stories";
 import { formatReportDate } from "@/lib/slug";
 
@@ -20,7 +21,8 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
   try {
     const [report] = await getDb().select().from(dailyReports).where(eq(dailyReports.slug, slug)).limit(1);
     if (!report) notFound();
-    const [briefing, adjacent] = await Promise.all([readingReport(report), adjacentReports(report.date)]);
+    const [rawBriefing, adjacent, reader] = await Promise.all([readingReport(report), adjacentReports(report.date), readerContext()]);
+    const briefing = filterReadingReport(rawBriefing, reader);
     const brief = briefStories(briefing);
     const isLatest = adjacent.latest?.id === report.id;
     return <AppShell>
@@ -29,9 +31,9 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground"><time className="font-medium uppercase tracking-widest text-accent" dateTime={report.date}>{formatReportDate(report.date)}</time><span>Updated {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short" }).format(report.generatedAt)}</span>{!isLatest && adjacent.latest ? <Link className="underline" href={`/daily-pulse/${adjacent.latest.slug}`}>Go to latest briefing →</Link> : null}</div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{brief.length ? "A few things worth knowing." : "Your daily catch-up."}</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">{briefing.message}</p>
-          {brief.length ? <ol className="mt-6 space-y-5">{brief.map((story, index) => <li key={story.id} className="flex gap-4"><span className="pt-0.5 font-mono text-sm text-accent" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div><h2 className="font-semibold leading-6"><a href={`#story-${story.id}`} className="hover:text-accent">{story.headline}</a></h2><p className="mt-1 text-sm leading-6 text-muted-foreground">{story.summary}</p><p className="mt-1 text-xs text-muted-foreground">{story.sources[0].name} · {story.novelty === "updated" ? "Updated transcript summary" : "From transcript"}</p></div></li>)}</ol> : null}
+          {brief.length ? <ol className="mt-6 space-y-5">{brief.map((story, index) => <li key={story.id} className="flex gap-4"><span className="pt-0.5 font-mono text-sm text-accent" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div><h2 className="font-semibold leading-6"><Link href={`/videos/${story.id}`} className="hover:text-accent">{story.headline}</Link></h2><p className="mt-1 text-sm leading-6 text-muted-foreground">{story.summary}</p><p className="mt-1 text-xs text-muted-foreground">{story.sources[0].name} · {story.novelty === "updated" ? "Updated transcript summary" : "From transcript"}</p></div></li>)}</ol> : null}
         </section>
-        <StoryFeed stories={briefing.stories} />
+        <StoryFeed stories={briefing.stories} reader={reader} />
         <nav aria-label="Report navigation" className="flex flex-wrap justify-between gap-3 border-t border-border pt-5 text-sm text-muted-foreground">
           {adjacent.previous ? <Link href={`/daily-pulse/${adjacent.previous.slug}`}>← {formatReportDate(adjacent.previous.date)}</Link> : <span />}
           <Link href="/archive">All briefings</Link>

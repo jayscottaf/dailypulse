@@ -127,3 +127,29 @@ a {
 .story-card h3, .story-card p, .story-card a { overflow-wrap: anywhere; }
 button[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--accent); }
 summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+
+html[data-theme="light"] {
+  --background: #f7f7f3;
+  --foreground: #202521;
+  --card: #ffffff;
+  --card-foreground: #202521;
+  --popover: #ffffff;
+  --popover-foreground: #202521;
+  --primary: #202521;
+  --primary-foreground: #ffffff;
+  --secondary: #e8e9e2;
+  --secondary-foreground: #202521;
+  --muted: #eeefe9;
+  --muted-foreground: #60665e;
+  --accent: #786018;
+  --accent-foreground: #ffffff;
+  --border: #d9ddd3;
+  --input: #c9cec2;
+  --ring: #786018;
+  color-scheme: light;
+}
+html[data-theme="dark"] { color-scheme: dark; }
+body { background: var(--background); }
+.prose-pulse h3 { color: var(--accent); }
+.prose-pulse p, .prose-pulse li { color: var(--muted-foreground); }
+.prose-pulse strong { color: var(--foreground); }

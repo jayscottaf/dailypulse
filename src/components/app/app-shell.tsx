@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { Activity, Archive, Search, Settings, LayoutGrid, Sun, Video } from "lucide-react";
+import { Archive, Search, Settings, LayoutGrid, Sun, Video, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/", label: "Today", icon: Sun },
   { href: "/feed", label: "Feed", icon: LayoutGrid },
+  { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/archive", label: "Archive", icon: Archive },
   { href: "/search", label: "Search", icon: Search },
-  { href: "/sources", label: "Sources", icon: Settings },
-  { href: "/admin", label: "Admin", icon: Activity },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function AppShell({ children, compact = false }: { children: React.ReactNode; compact?: boolean }) {

@@ -1,3 +1,4 @@
+import { readerContext } from "@/lib/reader-store";
 import { revalidatePath } from "next/cache";
 import { priorCoverage } from "@/lib/briefing";
 import { and, asc, desc, eq, gt, gte, lt } from "drizzle-orm";
@@ -15,10 +16,10 @@ export async function generateDailyReport(reportDate = todayIso()) {
   const since = new Date(`${reportDate}T00:00:00Z`);
   since.setUTCDate(since.getUTCDate() - 14);
   const previous = await db.select().from(dailyReports).where(and(lt(dailyReports.date, reportDate), gte(dailyReports.date, since.toISOString().slice(0, 10)))).orderBy(desc(dailyReports.date));
-  const feedbackProfile = await buildFeedbackProfile();
+  const [feedbackProfile, reader] = await Promise.all([buildFeedbackProfile(), readerContext()]);
 
   try {
-    const generated = await generateDailyReportMarkdown(reportDate, reportInput, feedbackProfile, priorCoverage(previous));
+    const generated = await generateDailyReportMarkdown(reportDate, reportInput, feedbackProfile, priorCoverage(previous), false, reader);
     const slug = createReportSlug(reportDate);
     const sourceVideoIds = reportInput.map((row) => row.video.id);
 

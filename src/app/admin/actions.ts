@@ -6,8 +6,9 @@ import { validateAdminSecret } from "@/lib/auth";
 
 export async function loginAdmin(formData: FormData) {
   const secret = String(formData.get("secret") ?? "");
+  const returnTo = formData.get("returnTo") === "/newsletters" ? "/newsletters" : "/admin";
   if (!validateAdminSecret(secret)) {
-    redirect("/admin?error=1");
+    redirect(`${returnTo}?error=1`);
   }
 
   const store = await cookies();
@@ -19,5 +20,11 @@ export async function loginAdmin(formData: FormData) {
     maxAge: 60 * 60 * 24 * 30,
   });
 
-  redirect("/admin");
+  redirect(returnTo);
+}
+
+export async function lockPrivateInbox() {
+  const store = await cookies();
+  store.delete("daily_pulse_admin");
+  redirect("/newsletters");
 }

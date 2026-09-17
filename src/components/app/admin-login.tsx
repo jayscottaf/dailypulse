@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function AdminLogin({ error }: { error?: boolean }) {
+export function AdminLogin({ error, returnTo = "/admin" }: { error?: boolean; returnTo?: "/admin" | "/newsletters" }) {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md items-center">
       <Card className="w-full">
@@ -14,6 +14,7 @@ export function AdminLogin({ error }: { error?: boolean }) {
         </CardHeader>
         <CardContent>
           <form action={loginAdmin} className="space-y-4">
+            <input type="hidden" name="returnTo" value={returnTo} />
             <div className="space-y-2">
               <Label htmlFor="secret">Admin secret</Label>
               <Input id="secret" name="secret" type="password" autoComplete="current-password" required />

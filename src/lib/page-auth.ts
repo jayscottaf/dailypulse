@@ -11,7 +11,11 @@ import { cookies } from "next/headers";
 // anonymously.
 export async function isAdminSession() {
   if (process.env.ADMIN_AUTH_ENABLED !== "true") return true;
+  return isPrivateSession();
+}
 
+// Private email excerpts never inherit the optional public-admin bypass.
+export async function isPrivateSession() {
   const store = await cookies();
   return Boolean(process.env.ADMIN_SECRET && store.get("daily_pulse_admin")?.value === process.env.ADMIN_SECRET);
 }

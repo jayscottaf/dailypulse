@@ -7,6 +7,7 @@ import { source } from "./fixtures";
 
 const { fetchFeed, transcript } = vi.hoisted(() => ({ fetchFeed: vi.fn(), transcript: vi.fn() }));
 vi.mock("../src/lib/rss", () => ({ fetchYoutubeRssVideos: fetchFeed, filterNewVideos: (rows: { publishedAt: Date }[], since: Date) => rows.filter(row => row.publishedAt >= since) }));
+vi.mock("../src/lib/article-feeds", () => ({ fetchArticleFeed: async () => [], enrichArticle: async (item: unknown) => item }));
 vi.mock("../src/lib/transcripts", () => ({ fetchTranscript: transcript }));
 
 describe.skipIf(process.env.RUN_DB_TESTS !== "1")("source failure recovery with local database and mocked feeds", () => {

@@ -213,3 +213,17 @@ export const storyStates = pgTable("story_states", {
   less: boolean("less").default(false).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Deliberately separate from videos/summaries: public queries cannot include
+// private email excerpts through a source or report join.
+export const privateNewsletters = pgTable("private_newsletters", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fingerprint: text("fingerprint").notNull().unique(),
+  sender: text("sender").notNull(),
+  subject: text("subject").notNull(),
+  topic: text("topic").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+  body: text("body").notNull(),
+  archived: boolean("archived").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});

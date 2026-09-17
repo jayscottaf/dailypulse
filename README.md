@@ -1,6 +1,6 @@
 # Jason Daily Pulse
 
-Private daily intelligence dashboard for Jason Mergl. The app ingests a fixed roster of YouTube RSS sources, summarizes new videos with OpenAI, generates a daily personalized briefing, archives every report, and emails the short briefing itself through Resend.
+Daily intelligence dashboard for Jason Mergl. The app collects YouTube, RSS/Atom news and forum posts, summarizes available source text, and delivers a brief of 3–5 stories. Private newsletter excerpts have a separate sign-in-protected inbox.
 
 ## Stack
 
@@ -28,7 +28,7 @@ EMAIL_FROM="Jason Daily Pulse <daily-pulse@example.com>"
 YOUTUBE_API_KEY=
 ```
 
-`TRANSCRIPT_API_URL` is optional. If it is not configured, ingestion marks transcripts unavailable and summaries use title, description, and RSS metadata. Manual transcript paste/edit is available on each video detail page.
+`TRANSCRIPT_API_URL` is optional. If it is not configured, ingestion marks transcripts unavailable and items show title-only previews until source text is available. Manual transcript paste/edit is available on each video detail page.
 
 ## Local Setup
 
@@ -118,7 +118,7 @@ Vercel Cron runs `/api/cron/ingest` at 11:00 UTC and `/api/cron/report` at 11:20
 4. OpenAI creates a saved summary from available transcripts, preserving attribution and uncertainty. Metadata previews do not invoke the model.
 5. The daily brief deterministically selects up to three or five new or updated stories from a 72-hour window, using prior coverage and reading preferences.
 6. The final report is saved as markdown and structured JSON.
-7. Resend emails the selected transcript-backed stories in HTML and plain text, preserving the same summaries and source links. Quiet, metadata-only and already-covered briefings are skipped. Incomplete or stale source checks produce a separate service notice, once per interruption until recovery.
+7. Resend emails the selected source-backed stories in HTML and plain text, preserving the same summaries and source links. Quiet, metadata-only and already-covered briefings are skipped. Incomplete or stale source checks add a coverage warning when useful stories remain. If no grounded stories remain, a separate service notice is sent once per interruption until recovery.
 
 ## Routes
 
@@ -163,3 +163,15 @@ Today offers a short brief followed by a topic-filtered card/list feed. Saved bo
 `/email-preview` renders the latest report's email and plain-text version without sending. A production send requires a public HTTPS `APP_BASE_URL`. Provider acceptance is recorded only after Resend returns an ID; errors remain retryable. A deterministic content-based idempotency key guards retries within Resend's deduplication window. The app also skips reports with an existing `emailSentAt`.
 
 Optional integration tests use a disposable local PostgreSQL-compatible database at `127.0.0.1:55432` only. Initialize it with `bootstrapDatabase`, run `scripts/seed-browser-test.ts`, then run `RUN_DB_TESTS=1 npm test` with `DATABASE_URL` set. Email and feed integrations mock external providers and send no real messages.
+
+### News, forums and private newsletters
+
+`/sources` offers 11 recommended public feeds: OpenAI, Hugging Face, Verge AI, Ars Technica, Hacker News, Not a Tesla App, Tesla Motors Club Model Y, Delta News Hub, FAA, Frequent Miler and Saratoga Today Business. Blender is optional. Installing a selection is repeat-safe and enables its topics without replacing other preferences. Electrek was left out because its hostname failed public-network validation during verification.
+
+Collection checks a seven-day window. Article extraction and up to four publisher-balanced summaries run during report generation. AI, technology and Tesla each get a candidate when available. RSS entries without trustworthy dates are skipped. HTML becomes plain text; excerpts and forum accounts retain evidence labels. Link-only Hacker News entries stay discovery previews, outside the factual email brief. Mozilla Readability extracts publisher-owned article text when RSS excerpts are short; private addresses, non-HTTPS URLs and declared subscription-only pages are rejected.
+
+`/newsletters` always requires `ADMIN_SECRET`, even when `ADMIN_AUTH_ENABLED=false`. Its table is separate from public sources, search, reports and email. Users can paste selected excerpts, archive/restore them and lock the inbox. Text is rendered escaped; it is not sent to OpenAI. All private reads and writes recheck the session before accessing the database. No real mailbox content is used in automated tests.
+
+**Gmail is not connected to the deployed application.** A Gmail connector available inside Codex does not grant DailyPulse mailbox access. This version provides manual private import; automatic newsletter sync requires a separate read-only OAuth integration and explicit account connection.
+
+New tables and topic enum values initialize additively on authorized use; matching Drizzle migrations are included. Test database integration with `RUN_DB_TESTS=1` only against the disposable PostgreSQL-compatible server at `127.0.0.1:55432`.

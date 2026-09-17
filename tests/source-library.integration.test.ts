@@ -31,6 +31,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== "1")("source library installation",
     if (url.hostname !== "127.0.0.1" || url.port !== "55432") throw new Error("Requires disposable localhost:55432.");
     const before = await readerContext();
     const db = getDb();
+    await db.delete(sources).where(eq(sources.displayName, "Delta News Hub"));
     try {
       expect(await installSources(["delta"])).toBe(1);
       expect(await installSources(["delta"])).toBe(0);

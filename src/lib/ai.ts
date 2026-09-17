@@ -119,7 +119,7 @@ export async function summarizeVideo(video: Video, source: Source): Promise<Vide
 export type ReportInputVideo = {
   video: Video;
   source: Source;
-  summary: VideoSummary;
+  summary: VideoSummary | null;
 };
 
 export type GeneratedReportPayload = {

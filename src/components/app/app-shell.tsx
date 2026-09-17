@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { Activity, Archive, Search, Settings, ThumbsUp, Video } from "lucide-react";
+import { Activity, Archive, Search, Settings, LayoutGrid, Sun, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/admin", label: "Admin", icon: Activity },
+  { href: "/", label: "Today", icon: Sun },
+  { href: "/feed", label: "Feed", icon: LayoutGrid },
   { href: "/archive", label: "Archive", icon: Archive },
-  { href: "/liked", label: "Liked", icon: ThumbsUp },
   { href: "/search", label: "Search", icon: Search },
   { href: "/sources", label: "Sources", icon: Settings },
+  { href: "/admin", label: "Admin", icon: Activity },
 ];
 
 export function AppShell({ children, compact = false }: { children: React.ReactNode; compact?: boolean }) {
@@ -20,23 +21,25 @@ export function AppShell({ children, compact = false }: { children: React.ReactN
         Skip to content
       </a>
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-4 py-3 sm:flex-row sm:items-center">
           <Link href="/" className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-md bg-accent text-accent-foreground">
               <Video className="size-4" />
             </span>
             <span>
               <span className="block text-sm font-semibold">Jason Daily Pulse</span>
-              <span className="block text-xs text-muted-foreground">Private intelligence dashboard</span>
+              <span className="block text-xs text-muted-foreground">Your daily catch-up</span>
             </span>
           </Link>
-          <nav className="flex items-center gap-1">
+          <nav className="flex w-full items-center justify-between gap-1 sm:w-auto">
             {nav.map((item) => (
               <Link
                 key={item.href}
+                aria-label={item.label}
+                title={item.label}
                 href={item.href}
                 className={cn(
-                  "inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "inline-flex h-10 items-center gap-2 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
                   compact && "px-2",
                 )}
               >

@@ -1,255 +1,48 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { notFound, unstable_rethrow } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { eq } from "drizzle-orm";
-import { ExternalLink } from "lucide-react";
-import { CopyReportButton } from "@/components/app/copy-report-button";
 import { AppShell } from "@/components/app/app-shell";
 import { BackToTop } from "@/components/app/back-to-top";
 import { SetupPanel } from "@/components/app/setup-panel";
-import { TagLink } from "@/components/app/tag-link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StoryFeed } from "@/components/app/story-feed";
 import { getDb } from "@/db/client";
-import { dailyReports, reportVideos, sources, videos } from "@/db/schema";
-import type { Source, Video } from "@/db/schema";
-import { parseReportStructure, type ReportStructure } from "@/lib/report-structure";
+import { dailyReports } from "@/db/schema";
 import { adjacentReports } from "@/lib/reports";
+import { readingReport } from "@/lib/reading";
+import { briefStories, parseBriefing } from "@/lib/stories";
 import { formatReportDate } from "@/lib/slug";
-import { archiveTagHref, uniqueTags } from "@/lib/tags";
-
-type SourceVideo = {
-  video: Video;
-  source: Source;
-};
-
-function sectionId(title: string) {
-  return title.toLowerCase().replaceAll(" ", "-");
-}
-
-function SourceChips({
-  sourceVideoIds,
-  sourceMap,
-}: {
-  sourceVideoIds: string[];
-  sourceMap: Map<string, SourceVideo>;
-}) {
-  const linkedVideos = [...new Set(sourceVideoIds)]
-    .map((id) => sourceMap.get(id))
-    .filter((row): row is SourceVideo => Boolean(row));
-
-  if (linkedVideos.length === 0) return null;
-
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-[0.65rem]">Sources</span>
-      {linkedVideos.map(({ video, source }) => (
-        <span
-          key={video.id}
-          className="inline-flex min-w-0 max-w-full items-center overflow-hidden rounded-md border border-border bg-muted/50 text-xs font-medium text-muted-foreground sm:max-w-[20rem]"
-          title={`${source.displayName}: ${video.title}`}
-        >
-          <Link
-            href={`/videos/${video.id}`}
-            className="min-w-0 truncate px-2 py-1 transition hover:text-foreground"
-          >
-            {source.displayName.split("/")[0].trim()}: {video.title}
-          </Link>
-          <a
-            href={video.url}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`Open ${video.title} on YouTube`}
-            className="border-l border-border px-1.5 py-1 transition hover:bg-background hover:text-foreground"
-          >
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function StructuredReport({
-  structure,
-  sourceMap,
-}: {
-  structure: ReportStructure;
-  sourceMap: Map<string, SourceVideo>;
-}) {
-  return (
-    <div className="space-y-9">
-      {structure.sections.map((section) => (
-        <section key={section.title} id={sectionId(section.title)} className="scroll-mt-24">
-          <h2>{section.title}</h2>
-          <div className="space-y-6">
-            {section.subsections.map((subsection) => (
-              <div key={`${section.title}-${subsection.title}`}>
-                <h3>{subsection.title}</h3>
-                <ul className="space-y-4">
-                  {subsection.items.map((item, index) => (
-                    <li key={`${subsection.title}-${index}`}>
-                      <span>{item.text}</span>
-                      <SourceChips sourceVideoIds={item.sourceVideoIds} sourceMap={sourceMap} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
 
 export default async function DailyReportPage({ params }: { params: Promise<{ slug: string }> }) {
+  await connection();
   const { slug } = await params;
-
   try {
-    const db = getDb();
-    const [report] = await db.select().from(dailyReports).where(eq(dailyReports.slug, slug)).limit(1);
+    const [report] = await getDb().select().from(dailyReports).where(eq(dailyReports.slug, slug)).limit(1);
     if (!report) notFound();
-
-    const usedVideos = await db
-      .select({ video: videos, source: sources })
-      .from(reportVideos)
-      .innerJoin(videos, eq(reportVideos.videoId, videos.id))
-      .innerJoin(sources, eq(videos.sourceId, sources.id))
-      .where(eq(reportVideos.reportId, report.id));
-    const structuredReport = parseReportStructure(report.structuredJson);
-    const sourceMap = new Map(usedVideos.map((row) => [row.video.id, row]));
-    const tags = uniqueTags(report.tags);
-    const topicTrailTags = tags.slice(0, 5);
-    const hiddenTagCount = Math.max(tags.length - topicTrailTags.length, 0);
-
-    const adjacent = await adjacentReports(report.date);
+    const [briefing, adjacent] = await Promise.all([readingReport(report), adjacentReports(report.date)]);
+    const brief = briefStories(briefing);
     const isLatest = adjacent.latest?.id === report.id;
-    // Derive the in-report jump nav from the actual report structure; fall back
-    // to the canonical four layers only when there's no usable structure.
-    const navSections =
-      structuredReport && structuredReport.sections.length >= 2
-        ? structuredReport.sections.map((section) => section.title)
-        : [
-            "THE MACRO FINANCIAL LAYER",
-            "THE DEEP-TECH & AI AUTOMATION LAYER",
-            "THE TESLA OWNERSHIP & SOFTWARE LAYER",
-            "JASON PERSONAL PULSE",
-          ];
-
-    return (
-      <AppShell>
-        <article className="space-y-6">
-          <section className="rounded-lg border border-border bg-card p-5 sm:p-8">
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">{formatReportDate(report.date)}</p>
-            <h1 className="mt-3 max-w-3xl text-3xl font-semibold leading-tight sm:text-5xl">{report.title}</h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">{report.summaryPreview}</p>
-            {topicTrailTags.length > 0 ? (
-              <div className="mt-5 space-y-2">
-                <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-[0.65rem]">Topic trail</p>
-                <div className="flex flex-wrap gap-2">
-                  {topicTrailTags.map((tag) => <TagLink key={tag} tag={tag} href={archiveTagHref(tag)} />)}
-                  {hiddenTagCount > 0 ? (
-                    <Link
-                      href="#all-tags"
-                      className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground transition hover:border-accent/70 hover:text-accent"
-                    >
-                      +{hiddenTagCount} more
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            <div className="mt-6 flex flex-wrap gap-2">
-              <CopyReportButton markdown={report.fullMarkdown} />
-              <Button asChild variant="outline">
-                <Link href="/archive">Archive</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/search">Search</Link>
-              </Button>
-            </div>
-          </section>
-
-          {navSections.length >= 2 ? (
-            <nav className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {navSections.map((section) => (
-                <a key={section} href={`#${sectionId(section)}`} className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-                  {section}
-                </a>
-              ))}
-            </nav>
-          ) : null}
-
-          {adjacent.previous || adjacent.next || !isLatest ? (
-            <nav aria-label="Report navigation" className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                {adjacent.previous ? (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/daily-pulse/${adjacent.previous.slug}`}>← {formatReportDate(adjacent.previous.date)}</Link>
-                  </Button>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {!isLatest && adjacent.latest ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/daily-pulse/${adjacent.latest.slug}`}>Latest</Link>
-                  </Button>
-                ) : null}
-                {adjacent.next ? (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/daily-pulse/${adjacent.next.slug}`}>{formatReportDate(adjacent.next.date)} →</Link>
-                  </Button>
-                ) : null}
-              </div>
-            </nav>
-          ) : null}
-
-          <p className="rounded-md border border-border p-3 text-sm text-muted-foreground">Archived AI report. Source links do not independently verify its claims. Check the source overview for transcript availability before relying on a claim.</p>
-          <Card>
-            <CardContent className="p-5 sm:p-8">
-              <div className="prose-pulse max-w-none">
-                {structuredReport ? (
-                  <StructuredReport structure={structuredReport} sourceMap={sourceMap} />
-                ) : (
-                  <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => <h1 id={sectionId(String(children))}>{children}</h1>,
-                      h2: ({ children }) => <h2 id={sectionId(String(children))}>{children}</h2>,
-                    }}
-                  >
-                    {report.fullMarkdown}
-                  </ReactMarkdown>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {tags.length > 0 ? (
-            <Card id="all-tags" className="scroll-mt-24">
-              <CardHeader>
-                <CardTitle>All tags</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => <TagLink key={tag} tag={tag} href={archiveTagHref(tag)} />)}
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-        </article>
-        <BackToTop />
-      </AppShell>
-    );
+    return <AppShell>
+      <article className="space-y-10">
+        <section aria-label="Your short briefing" className="max-w-3xl">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground"><time className="font-medium uppercase tracking-widest text-accent" dateTime={report.date}>{formatReportDate(report.date)}</time><span>Updated {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short" }).format(report.generatedAt)}</span>{!isLatest && adjacent.latest ? <Link className="underline" href={`/daily-pulse/${adjacent.latest.slug}`}>Go to latest briefing →</Link> : null}</div>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{brief.length ? "A few things worth knowing." : "Your daily catch-up."}</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{briefing.message}</p>
+          {brief.length ? <ol className="mt-6 space-y-5">{brief.map((story, index) => <li key={story.id} className="flex gap-4"><span className="pt-0.5 font-mono text-sm text-accent" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div><h2 className="font-semibold leading-6"><a href={`#story-${story.id}`} className="hover:text-accent">{story.headline}</a></h2><p className="mt-1 text-sm leading-6 text-muted-foreground">{story.summary}</p><p className="mt-1 text-xs text-muted-foreground">{story.sources[0].name} · {story.novelty === "updated" ? "Updated transcript summary" : "From transcript"}</p></div></li>)}</ol> : null}
+        </section>
+        <StoryFeed stories={briefing.stories} />
+        <nav aria-label="Report navigation" className="flex flex-wrap justify-between gap-3 border-t border-border pt-5 text-sm text-muted-foreground">
+          {adjacent.previous ? <Link href={`/daily-pulse/${adjacent.previous.slug}`}>← {formatReportDate(adjacent.previous.date)}</Link> : <span />}
+          <Link href="/archive">All briefings</Link>
+          {adjacent.next ? <Link href={`/daily-pulse/${adjacent.next.slug}`}>{formatReportDate(adjacent.next.date)} →</Link> : <span />}
+        </nav>
+        {!parseBriefing(report.structuredJson) ? <details className="border-t border-border pt-5"><summary className="cursor-pointer text-sm text-muted-foreground">Original archived report</summary><p className="mt-4 text-sm text-muted-foreground">This older AI report may contain unsupported claims. The feed above uses current source-evidence checks.</p><div className="prose-pulse mt-4 max-w-3xl"><ReactMarkdown>{report.fullMarkdown}</ReactMarkdown></div></details> : null}
+      </article>
+      <BackToTop />
+    </AppShell>;
   } catch (error) {
-    // Let Next's control-flow signals (notFound / redirect) propagate instead of
-    // being swallowed and rendered as a misleading "Setup needed" panel. A truly
-    // missing report now renders a real 404.
     unstable_rethrow(error);
-    return (
-      <AppShell>
-        <SetupPanel error={error} />
-      </AppShell>
-    );
+    return <AppShell><SetupPanel error={error} /></AppShell>;
   }
 }

@@ -110,3 +110,20 @@ a {
 .prose-pulse strong {
   color: #ffffff;
 }
+
+.story-image {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: var(--muted);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.story-card { min-width: 0; }
+.story-card h3, .story-card p, .story-card a { overflow-wrap: anywhere; }
+button[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--accent); }
+summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }

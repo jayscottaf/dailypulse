@@ -4,12 +4,12 @@ import { useActionState } from "react";
 import { Mail, Newspaper, Play, Search } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { ActionStatus } from "@/components/app/action-status";
+import type { ActionResult } from "@/lib/action-result";
 import {
   generateReportAction,
   rebuildSearchAction,
   runIngestionAction,
   sendTodayEmailAction,
-  type ActionResult,
 } from "@/app/admin/control-actions";
 
 type ControlAction = {

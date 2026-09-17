@@ -8,9 +8,6 @@ import { runIngestion } from "@/lib/ingestion";
 import { generateDailyReport, latestReport } from "@/lib/reports";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
-// Re-exported so existing importers (pipeline-controls) keep their import path.
-export type { ActionResult };
-
 async function assertAdmin() {
   if (!(await isAdminSession())) throw new Error("Unauthorized.");
 }

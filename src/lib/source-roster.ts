@@ -1,10 +1,7 @@
 import type { Source } from "@/db/schema";
 
-export const LAYERS = {
-  macro_financial: "THE MACRO FINANCIAL LAYER",
-  deep_tech_ai: "THE DEEP-TECH & AI AUTOMATION LAYER",
-  tesla_ownership: "THE TESLA OWNERSHIP & SOFTWARE LAYER",
-} as const;
+export { TOPICS as LAYERS } from "@/lib/topics";
+import { TOPICS as LAYERS } from "@/lib/topics";
 
 export type LayerKey = keyof typeof LAYERS;
 

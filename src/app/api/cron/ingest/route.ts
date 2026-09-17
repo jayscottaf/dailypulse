@@ -3,11 +3,8 @@ import { runIngestion } from "@/lib/ingestion";
 
 export const maxDuration = 60;
 
-// Split out from the original combined daily-pulse cron: on the Vercel Hobby
-// plan a single invocation is capped at 60s, and ingest + summarize + report +
-// email together exceeds that and times out (5XX). This route only ingests and
-// summarizes; report generation + email run in a separate cron a few minutes
-// later so each invocation stays under the limit.
+// Feed collection runs separately from article extraction and summarization,
+// which run during report generation within their own 60-second budget.
 export async function GET(request: Request) {
   if (!validateCronSecret(request.headers.get("authorization"))) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });

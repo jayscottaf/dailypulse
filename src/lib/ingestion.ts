@@ -1,3 +1,6 @@
+import { fetchArticleFeed, enrichArticle } from "@/lib/article-feeds";
+import { sourceKind } from "@/lib/content-kind";
+import { hasSourceText } from "@/lib/evidence";
 import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { ingestionRuns, sources, videoSummaries, videos } from "@/db/schema";
@@ -14,7 +17,7 @@ type IngestionOptions = {
   summaryLimit?: number;
 };
 
-export async function runIngestion({ summarize = true, summaryLimit = 4 }: IngestionOptions = {}) {
+export async function runIngestion({ summarize = false, summaryLimit = 4 }: IngestionOptions = {}) {
   const db = getDb();
   const [run] = await db.insert(ingestionRuns).values({ status: "running" }).returning();
   let videosFound = 0;
@@ -28,7 +31,8 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const activeSources = await db.select().from(sources).where(eq(sources.isActive, true));
 
-    for (const source of activeSources) {
+    for (let offset = 0; offset < activeSources.length; offset += 8) {
+    await Promise.all(activeSources.slice(offset, offset + 8).map(async source => {
       let rssUrl = resolveRssUrl(source);
       if (!rssUrl && source.youtubeHandle) {
         const channelId = await lookupChannelIdByHandle(source.youtubeHandle);
@@ -43,17 +47,23 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
       if (!rssUrl) {
         failedSourceIds.add(source.id);
         videosSkipped += 1;
-        continue;
+        return;
       }
 
       try {
-        const feedVideos = filterNewVideos(await fetchYoutubeRssVideos(rssUrl), since);
+        const feedVideos = filterNewVideos(sourceKind(source) === "video" ? await fetchYoutubeRssVideos(rssUrl) : await fetchArticleFeed(source), since).slice(0, 10);
         videosFound += feedVideos.length;
 
         const existing = feedVideos.length ? await db.select({ id: videos.youtubeVideoId }).from(videos).where(inArray(videos.youtubeVideoId, feedVideos.map(video => video.youtubeVideoId))) : [];
         const knownIds = new Set(existing.map(video => video.id));
         for (const feedVideo of feedVideos) {
           if (knownIds.has(feedVideo.youtubeVideoId)) { videosSkipped += 1; continue; }
+          if (sourceKind(source) !== "video") {
+            const item = feedVideo;
+            const inserted = await db.insert(videos).values({ ...item, sourceId: source.id }).onConflictDoNothing({target:videos.youtubeVideoId}).returning();
+            if(inserted.length) videosCreated += 1; else videosSkipped += 1;
+            continue;
+          }
           const transcript = await fetchTranscript(feedVideo.youtubeVideoId);
           if (transcript.status === "error") {
             await logError("transcript fetch", new Error(transcript.error), {
@@ -89,6 +99,7 @@ export async function runIngestion({ summarize = true, summaryLimit = 4 }: Inges
         failedSourceIds.add(source.id);
         await logError("RSS fetch", error, { sourceId: source.id, source: source.displayName, rssUrl });
       }
+    }));
     }
 
     if (summarize) {
@@ -136,41 +147,43 @@ export async function summarizeUnsummarizedRecentVideos(force = false, limit = 8
     .from(videos)
     .innerJoin(sources, eq(videos.sourceId, sources.id))
     .leftJoin(videoSummaries, eq(videoSummaries.videoId, videos.id))
-    .where(gte(videos.publishedAt, since))
+    .where(and(eq(sources.isActive, true), gte(videos.publishedAt, since)))
     .orderBy(desc(videos.publishedAt))
     .limit(500);
 
+  // Reserve a place for each publisher before taking additional stories from
+  // the same feed. A prolific publisher must not consume the entire AI budget.
+  const pending = recentVideos.filter(row => force || row.summary?.contentHash !== summaryHash(row.video, row.source));
+  pending.sort((a, b) => Number(hasSourceText(b.video) || sourceKind(b.source) === "article") - Number(hasSourceText(a.video) || sourceKind(a.source) === "article"));
+  const seen = new Set<string>();
+  const first = pending.filter(row => {
+    if (seen.has(row.source.id)) return false;
+    seen.add(row.source.id); return true;
+  });
+  const candidates = [...first, ...pending.filter(row => !first.includes(row))].slice(0, Math.min(limit, 8));
   const summarized: string[] = [];
-
-  for (const row of recentVideos) {
-    if (summarized.length >= limit) break;
-    const hash = summaryHash(row.video, row.source);
-    if (!force && row.summary?.contentHash === hash) continue;
-
+  await Promise.all(candidates.map(async row => {
     try {
+      if (sourceKind(row.source) === "article") {
+        const enriched = await enrichArticle(row.video as unknown as Awaited<ReturnType<typeof fetchArticleFeed>>[number]);
+        if (enriched.rawMetadata.bodyText !== row.video.rawMetadata.bodyText) {
+          const [updated] = await db.update(videos).set({ rawMetadata: enriched.rawMetadata, description: enriched.description, updatedAt: new Date() }).where(eq(videos.id, row.video.id)).returning();
+          row.video = updated;
+        }
+      }
+      const hash = summaryHash(row.video, row.source);
       const payload = await summarizeVideo(row.video, row.source);
-      await db
-        .insert(videoSummaries)
-        .values({
-          videoId: row.video.id,
-          ...payload,
-          model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-          contentHash: hash,
-        })
-        .onConflictDoUpdate({
-          target: videoSummaries.videoId,
-          set: {
-            ...payload,
-            model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-            contentHash: hash,
-            updatedAt: new Date(),
-          },
-        });
+      await db.insert(videoSummaries).values({
+        videoId: row.video.id, ...payload,
+        model: process.env.OPENAI_MODEL || "gpt-4.1-mini", contentHash: hash,
+      }).onConflictDoUpdate({ target: videoSummaries.videoId, set: {
+        ...payload, model: process.env.OPENAI_MODEL || "gpt-4.1-mini", contentHash: hash, updatedAt: new Date(),
+      }});
       summarized.push(row.video.id);
     } catch (error) {
       await logError("OpenAI generation", error, { videoId: row.video.id, title: row.video.title });
     }
-  }
+  }));
 
   return summarized;
 }
@@ -185,7 +198,7 @@ export async function videosForReport(hours = 72, reportDate?: string) {
     .from(videos)
     .innerJoin(sources, eq(videos.sourceId, sources.id))
     .leftJoin(videoSummaries, eq(videoSummaries.videoId, videos.id))
-    .where(and(eq(sources.isActive, true), gte(videos.publishedAt, since), lte(videos.publishedAt, until), inArray(sources.layer, ["macro_financial", "deep_tech_ai", "tesla_ownership"])))
+    .where(and(eq(sources.isActive, true), gte(videos.publishedAt, since), lte(videos.publishedAt, until)))
     .orderBy(desc(videos.publishedAt));
 
   return rows;

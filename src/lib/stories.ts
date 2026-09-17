@@ -1,17 +1,19 @@
 import { z } from "zod";
 
-export const TOPICS = { deep_tech_ai: "AI & tools", tesla_ownership: "Tesla", macro_financial: "Money" } as const;
+import { topicKeys } from "@/lib/topics";
+export { TOPICS } from "@/lib/topics";
 export const storySchema = z.object({
   id: z.string(),
   headline: z.string(),
   summary: z.string(),
   details: z.array(z.string()),
-  topic: z.enum(["deep_tech_ai", "tesla_ownership", "macro_financial"]),
-  evidence: z.enum(["transcript", "metadata"]),
+  topic: z.enum(topicKeys),
+  kind: z.enum(["video", "article", "forum"]).optional(),
+  evidence: z.enum(["transcript", "article", "forum", "metadata"]),
   novelty: z.enum(["new", "updated", "seen"]),
   score: z.number(),
   contentHash: z.string(),
-  sources: z.array(z.object({ id: z.string(), channelId: z.string().optional(), name: z.string(), url: z.string().url(), publishedAt: z.string(), thumbnailUrl: z.string().nullable(), contentHash: z.string() })).min(1),
+  sources: z.array(z.object({ kind: z.enum(["video", "article", "forum"]).optional(), id: z.string(), channelId: z.string().optional(), name: z.string(), url: z.string().url(), publishedAt: z.string(), thumbnailUrl: z.string().nullable(), contentHash: z.string() })).min(1),
 });
 export type Story = z.infer<typeof storySchema>;
 export const briefingSchema = z.object({
@@ -31,7 +33,7 @@ export function parseBriefing(value: unknown): Briefing | null {
 export function briefStories(briefing: Briefing) {
   return briefing.briefStoryIds.flatMap(id => {
     const story = briefing.stories.find(item => item.id === id);
-    return story && story.evidence === "transcript" && story.novelty !== "seen" ? [story] : [];
+    return story && story.evidence !== "metadata" && story.novelty !== "seen" ? [story] : [];
   });
 }
 

@@ -1,3 +1,4 @@
+import { contentKind } from "@/lib/content-kind";
 import { eq } from "drizzle-orm";
 import { readerContext } from "@/lib/reader-store";
 import { StoryControls } from "@/components/app/story-controls";
@@ -49,9 +50,10 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
       .limit(1);
 
     if (!row) {
-      return <AppShell><p className="text-sm text-muted-foreground">Video not found.</p></AppShell>;
+      return <AppShell><p className="text-sm text-muted-foreground">Story not found.</p></AppShell>;
     }
 
+    const kind = contentKind(row.video);
     const reader = await readerContext();
     const evidence = sourceEvidence(row.video, row.source, row.summary);
     const summary = evidence.summary;
@@ -74,7 +76,7 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
               {row.source.displayName} - {row.video.publishedAt.toLocaleString()}
             </p>
             <Button asChild className="mt-4" variant="outline">
-              <a href={row.video.url} target="_blank" rel="noreferrer"><ExternalLink /> Open video</a>
+              <a href={row.video.url} target="_blank" rel="noreferrer"><ExternalLink /> {kind === "video" ? "Open video" : kind === "forum" ? "Open discussion" : "Read article"}</a>
             </Button>
           </section>
 
@@ -91,7 +93,7 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
                       ))}
                     </div>
                   ) : null}
-                  <p className="text-xs text-muted-foreground">{evidence.basis === "transcript" ? "Summarized from the source transcript. Creator claims are not independently verified." : "No factual summary is available. Open the original video for its contents."}</p>
+                  <p className="text-xs text-muted-foreground">{evidence.basis === "transcript" ? "Summarized from the source transcript. Creator claims are not independently verified." : evidence.basis === "article" ? "Summarized from available publisher text, which may be incomplete." : evidence.basis === "forum" ? "An individual forum post; claims are not verified or community consensus." : "No factual summary is available. Open the original source for its contents."}</p>
                   <SummaryList title="Key claims" items={summary.keyClaims} />
                   <SummaryList title="Important data points" items={summary.importantDataPoints} />
                   <SummaryList title="Quotes or paraphrases" items={summary.quotesOrParaphrases} />
@@ -103,7 +105,7 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
             </CardContent>
           </Card>
 
-          <Card>
+          {kind === "video" ? <Card>
             <CardHeader><CardTitle>Timeline links</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {timelineLinks.length === 0 ? (
@@ -128,10 +130,10 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
                 ))
               )}
             </CardContent>
-          </Card>
+          </Card> : null}
 
           <StoryControls videoId={row.video.id} initial={reader.states[row.video.id]} />
-          <details className="rounded-md border border-border p-5"><summary className="cursor-pointer text-sm font-medium">View or edit transcript</summary><div className="mt-4"><TranscriptForm videoId={row.video.id} defaultValue={row.video.transcriptText ?? ""} /></div></details>
+          {kind === "video" ? <details className="rounded-md border border-border p-5"><summary className="cursor-pointer text-sm font-medium">View or edit transcript</summary><div className="mt-4"><TranscriptForm videoId={row.video.id} defaultValue={row.video.transcriptText ?? ""} /></div></details> : null}
         </div>
       </AppShell>
     );

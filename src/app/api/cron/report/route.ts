@@ -4,10 +4,8 @@ import { generateDailyReport } from "@/lib/reports";
 
 export const maxDuration = 60;
 
-// Second half of the split daily-pulse cron (see ./ingest/route.ts). Runs a few
-// minutes after ingestion so today's videos are already summarized, then builds
-// the report and emails it — keeping this invocation well under the 60s Hobby
-// limit that the original combined cron blew past.
+// Summarize a bounded, publisher-balanced selection, then build and deliver
+// the briefing after the separate feed collection job finishes.
 export async function GET(request: Request) {
   if (!validateCronSecret(request.headers.get("authorization"))) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });

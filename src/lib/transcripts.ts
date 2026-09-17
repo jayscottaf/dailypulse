@@ -11,6 +11,7 @@ export async function fetchTranscript(videoId: string): Promise<TranscriptResult
 
   try {
     const response = await fetch(`${endpoint.replace(/\/$/, "")}/${videoId}`, {
+      signal: AbortSignal.timeout(5000),
       headers: { accept: "application/json" },
       next: { revalidate: 0 },
     });

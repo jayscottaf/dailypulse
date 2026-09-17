@@ -16,7 +16,7 @@ describe.skipIf(process.env.RUN_DB_TESTS !== "1")("source failure recovery with 
     const db = getDb();
     await db.delete(videos).where(eq(videos.youtubeVideoId,"recovery-test"));
     const ids = ["10000000-0000-4000-8000-000000000020", "10000000-0000-4000-8000-000000000021"];
-    await db.insert(sources).values(ids.map((id, i) => ({...source,id,displayName:`Recovery test ${i}`,rssUrl:`https://feeds.example.com/${i}`})));
+    await db.insert(sources).values(ids.map((id, i) => ({...source,id,displayName:`Recovery test ${i}`,rssUrl:`https://www.youtube.com/feeds/${i}`})));
     await db.insert(ingestionRuns).values({status:"success", finishedAt:new Date()});
     fetchFeed.mockImplementation(async (url: string) => {
       if (url.endsWith("/1")) throw new Error("Mock feed unavailable");

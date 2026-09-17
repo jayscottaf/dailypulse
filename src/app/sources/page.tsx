@@ -20,9 +20,9 @@ export default async function SourcesPage() {
         <div className="space-y-6">
           <section>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Source library</p>
-            <h1 className="mt-2 text-3xl font-semibold">YouTube sources</h1>
+            <h1 className="mt-2 text-3xl font-semibold">Your sources</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Add channel IDs as you confirm them. Missing IDs are visible and skipped during RSS ingestion.
+              Add a YouTube channel or a public RSS/Atom feed. Articles and forum posts keep their own evidence labels.
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {sources.length} source{sources.length === 1 ? "" : "s"} - click one to edit.

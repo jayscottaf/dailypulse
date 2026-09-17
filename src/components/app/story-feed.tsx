@@ -1,11 +1,13 @@
 "use client";
 
+import { EVIDENCE_LABELS } from "@/lib/content-kind";
+
 import Image from "next/image";
 import Link from "next/link";
 import { StoryControls } from "@/components/app/story-controls";
 import { emptyReaderContext, type ReaderContext } from "@/lib/reader-preferences";
 import { useState } from "react";
-import { ExternalLink, Play, LayoutGrid, List } from "lucide-react";
+import { ExternalLink, Play, Newspaper, MessagesSquare, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TOPICS, safeSourceUrl, type Story } from "@/lib/stories";
 
@@ -13,8 +15,9 @@ function Thumbnail({ story }: { story: Story }) {
   const [failed, setFailed] = useState(false);
   const url = story.sources[0].thumbnailUrl;
   const allowed = url && /^https:\/\/(?:[a-z0-9-]+\.)?ytimg\.com\/(?:vi|vi_webp)\//i.test(url);
+  const Icon = story.kind === "article" ? Newspaper : story.kind === "forum" ? MessagesSquare : Play;
   return <div className="story-image">
-    {allowed && !failed ? <Image src={url} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px" className="object-cover" unoptimized onError={() => setFailed(true)} /> : <><Play className="size-7" aria-hidden="true" /><span>{TOPICS[story.topic]}</span></>}
+    {allowed && !failed ? <Image src={url} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px" className="object-cover" unoptimized onError={() => setFailed(true)} /> : <><Icon className="size-7" aria-hidden="true" /><span>{story.kind && story.kind !== "video" ? story.sources[0].name : TOPICS[story.topic]}</span></>}
   </div>;
 }
 
@@ -40,13 +43,13 @@ export function StoryFeed({ stories, title = "Explore your feed", reader = empty
           <h3 className="mt-3 text-lg font-semibold leading-snug tracking-tight">{story.headline}</h3>
           <p className="mt-2 text-xs text-muted-foreground">{story.sources[0].name}{story.sources.length > 1 ? ` + ${story.sources.length - 1} more sources` : ""}</p>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">{story.summary}</p>
-          <span className="mt-4 inline-block rounded border border-border px-2 py-1 text-xs">{story.evidence === "transcript" ? "From transcript" : "Title-only preview"}</span>
+          <span className="mt-4 inline-block rounded border border-border px-2 py-1 text-xs">{EVIDENCE_LABELS[story.evidence]}</span>
           <details className="mt-4 border-t border-border pt-3">
             <summary className="cursor-pointer py-1 text-sm font-medium">Details & sources</summary>
             <div className="mt-3 space-y-3 text-sm leading-6">
               {story.details.length ? <ul className="list-disc space-y-2 pl-5">{story.details.map((detail, i) => <li key={i}>{detail}</li>)}</ul> : null}
-              <p className="text-xs text-muted-foreground">{story.evidence === "transcript" ? "These are the creator's claims, summarized from a transcript excerpt. They have not been independently verified." : "A transcript-backed summary is not available. The title alone does not establish the video's claims."}</p>
-              {story.sources.map(source => <div key={source.id} className="flex flex-wrap items-center justify-between gap-2"><Link className="underline underline-offset-4" href={`/videos/${source.id}`}>{source.name}</Link>{safeSourceUrl(source.url) ? <a className="inline-flex items-center gap-1 text-accent" href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Watch video <ExternalLink className="size-3" /></a> : null}</div>)}
+              <p className="text-xs text-muted-foreground">{story.evidence === "transcript" ? "These are the creator's claims, summarized from a transcript excerpt. They have not been independently verified." : story.evidence === "article" ? "Summarized from the publisher’s available text. The excerpt may be incomplete; open the original for full context." : story.evidence === "forum" ? "This summarizes an individual forum post, not verified reporting or community consensus." : "Source text is not available. The title alone does not establish the claims."}</p>
+              {story.sources.map(source => <div key={source.id} className="flex flex-wrap items-center justify-between gap-2"><Link className="underline underline-offset-4" href={`/videos/${source.id}`}>{source.name}</Link>{safeSourceUrl(source.url) ? <a className="inline-flex items-center gap-1 text-accent" href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{(source.kind ?? story.kind ?? "video") === "video" ? "Watch video" : (source.kind ?? story.kind) === "forum" ? "Open discussion" : "Read article"} <ExternalLink className="size-3" /></a> : null}</div>)}
             </div>
           </details>
           <StoryControls videoId={story.id} initial={reader.states[story.id]} />

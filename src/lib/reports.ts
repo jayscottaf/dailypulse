@@ -8,11 +8,12 @@ import { dailyReports, ingestionRuns, reportVideos, videos } from "@/db/schema";
 import { generateDailyReportMarkdown } from "@/lib/ai";
 import { logError } from "@/lib/errors";
 import { buildFeedbackProfile } from "@/lib/feedback";
-import { videosForReport } from "@/lib/ingestion";
+import { summarizeUnsummarizedRecentVideos, videosForReport } from "@/lib/ingestion";
 import { createReportSlug, todayIso } from "@/lib/slug";
 
 export async function generateDailyReport(reportDate = todayIso()) {
   const db = getDb();
+  await summarizeUnsummarizedRecentVideos(false, 4);
   const reportInput = await videosForReport(72, reportDate);
   const since = new Date(`${reportDate}T00:00:00Z`);
   since.setUTCDate(since.getUTCDate() - 14);

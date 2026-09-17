@@ -1,7 +1,8 @@
+import { topicKeys, defaultTopics } from "@/lib/topics";
 import { z } from "zod";
 
 export const preferencesSchema = z.object({
-  topics: z.array(z.enum(["deep_tech_ai", "tesla_ownership", "macro_financial"])).default(["deep_tech_ai", "tesla_ownership", "macro_financial"]),
+  topics: z.array(z.enum(topicKeys)).default(defaultTopics),
   interests: z.string().max(500).default(""),
   layout: z.enum(["cards", "list"]).default("cards"),
   theme: z.enum(["dark", "light"]).default("dark"),

@@ -38,7 +38,7 @@ export function SourceForm({ source, layers }: { source?: Source | null; layers:
 
       <FormField name="displayName" suffix={suffix} label="Display name" defaultValue={source?.displayName} required />
       <div className="space-y-2">
-        <Label htmlFor={`layer-${suffix}`}>Layer</Label>
+        <Label htmlFor={`layer-${suffix}`}>Topic</Label>
         <select
           id={`layer-${suffix}`}
           name="layer"
@@ -52,7 +52,7 @@ export function SourceForm({ source, layers }: { source?: Source | null; layers:
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={`youtubeChannelId-${suffix}`}>YouTube channel ID</Label>
+        <Label htmlFor={`youtubeChannelId-${suffix}`}>YouTube channel ID (videos only)</Label>
         <Input
           id={`youtubeChannelId-${suffix}`}
           name="youtubeChannelId"
@@ -61,7 +61,7 @@ export function SourceForm({ source, layers }: { source?: Source | null; layers:
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`youtubeHandle-${suffix}`}>YouTube handle</Label>
+        <Label htmlFor={`youtubeHandle-${suffix}`}>YouTube handle (videos only)</Label>
         <div className="flex gap-2">
           <Input
             id={`youtubeHandle-${suffix}`}
@@ -83,7 +83,7 @@ export function SourceForm({ source, layers }: { source?: Source | null; layers:
         <ActionStatus result={resolveMsg} />
       </div>
 
-      <FormField name="rssUrl" suffix={suffix} label="RSS URL" defaultValue={source?.rssUrl ?? ""} />
+      <FormField name="rssUrl" suffix={suffix} label="RSS / Atom URL (for news or forums)" defaultValue={source?.rssUrl ?? ""} />
       <label className="flex items-center gap-2 pt-8 text-sm">
         <input name="isActive" type="checkbox" defaultChecked={source ? source.isActive : true} /> Active
       </label>

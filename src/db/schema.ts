@@ -16,7 +16,7 @@ import {
 export const layerEnum = pgEnum("layer", [
   "macro_financial",
   "deep_tech_ai",
-  "tesla_ownership",
+  "tesla_ownership", "technology", "aviation", "travel_points", "local_business", "home_design",
 ]);
 
 export const transcriptStatusEnum = pgEnum("transcript_status", [

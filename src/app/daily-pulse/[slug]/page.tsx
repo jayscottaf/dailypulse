@@ -1,3 +1,4 @@
+import { EVIDENCE_LABELS } from "@/lib/content-kind";
 import Link from "next/link";
 import { connection } from "next/server";
 import { notFound, unstable_rethrow } from "next/navigation";
@@ -31,7 +32,7 @@ export default async function DailyReportPage({ params }: { params: Promise<{ sl
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground"><time className="font-medium uppercase tracking-widest text-accent" dateTime={report.date}>{formatReportDate(report.date)}</time><span>Updated {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short" }).format(report.generatedAt)}</span>{!isLatest && adjacent.latest ? <Link className="underline" href={`/daily-pulse/${adjacent.latest.slug}`}>Go to latest briefing →</Link> : null}</div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{brief.length ? "A few things worth knowing." : "Your daily catch-up."}</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">{briefing.message}</p>
-          {brief.length ? <ol className="mt-6 space-y-5">{brief.map((story, index) => <li key={story.id} className="flex gap-4"><span className="pt-0.5 font-mono text-sm text-accent" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div><h2 className="font-semibold leading-6"><Link href={`/videos/${story.id}`} className="hover:text-accent">{story.headline}</Link></h2><p className="mt-1 text-sm leading-6 text-muted-foreground">{story.summary}</p><p className="mt-1 text-xs text-muted-foreground">{story.sources[0].name} · {story.novelty === "updated" ? "Updated transcript summary" : "From transcript"}</p></div></li>)}</ol> : null}
+          {brief.length ? <ol className="mt-6 space-y-5">{brief.map((story, index) => <li key={story.id} className="flex gap-4"><span className="pt-0.5 font-mono text-sm text-accent" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div><h2 className="font-semibold leading-6"><Link href={`/videos/${story.id}`} className="hover:text-accent">{story.headline}</Link></h2><p className="mt-1 text-sm leading-6 text-muted-foreground">{story.summary}</p><p className="mt-1 text-xs text-muted-foreground">{story.sources[0].name} · {story.novelty === "updated" ? "Updated · " : ""}{EVIDENCE_LABELS[story.evidence]}</p></div></li>)}</ol> : null}
         </section>
         <StoryFeed stories={briefing.stories} reader={reader} />
         <nav aria-label="Report navigation" className="flex flex-wrap justify-between gap-3 border-t border-border pt-5 text-sm text-muted-foreground">

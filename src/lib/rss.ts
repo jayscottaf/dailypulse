@@ -1,3 +1,4 @@
+import { fetchPublicText } from "@/lib/public-fetch";
 import Parser from "rss-parser";
 import { z } from "zod";
 
@@ -28,7 +29,7 @@ function extractThumbnail(item: Record<string, unknown>) {
 }
 
 export async function fetchYoutubeRssVideos(rssUrl: string): Promise<RssVideo[]> {
-  const feed = await parser.parseURL(rssUrl);
+  const feed = await parser.parseString(await fetchPublicText(rssUrl));
 
   return feed.items
     .map((item) => {

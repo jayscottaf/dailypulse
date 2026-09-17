@@ -1,5 +1,9 @@
 "use server";
 
+import { ensureTopicSchema } from "@/lib/topic-schema";
+import { topicKeys } from "@/lib/topics";
+import { z } from "zod";
+import { publicFeedUrl } from "@/lib/public-fetch";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
@@ -55,9 +59,11 @@ export async function saveSource(_prev: ActionResult | null, formData: FormData)
     const rssUrlInput = String(formData.get("rssUrl") ?? "").trim() || null;
     const rssUrl = rssUrlInput || resolveRssUrl({ youtubeChannelId, rssUrl: rssUrlInput });
 
+    await ensureTopicSchema();
+    if (rssUrl) publicFeedUrl(rssUrl);
     const values = {
       displayName,
-      layer: String(formData.get("layer") ?? "macro_financial") as "macro_financial" | "deep_tech_ai" | "tesla_ownership",
+      layer: z.enum(topicKeys).parse(formData.get("layer")),
       youtubeChannelId,
       youtubeHandle,
       rssUrl,

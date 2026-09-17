@@ -1,3 +1,5 @@
+import { contentKind } from "@/lib/content-kind";
+import { coreTopics } from "@/lib/topics";
 import type { ReaderContext } from "@/lib/reader-preferences";
 import type { FeedbackProfile } from "@/lib/feedback";
 import type { DailyReport } from "@/db/schema";
@@ -27,7 +29,7 @@ function titleWords(title: string) {
 }
 
 export function sameStory(a: Story, b: Story) {
-  if (a.topic !== b.topic || a.evidence !== b.evidence) return false;
+  if (a.topic !== b.topic || (a.evidence === "metadata") !== (b.evidence === "metadata") || (a.kind === "forum") !== (b.kind === "forum")) return false;
   const left = titleWords(a.headline), right = titleWords(b.headline);
   if (left.size < 4 || right.size < 4) return false;
   // Different model/version numbers are separate developments, even with similar titles.
@@ -51,10 +53,10 @@ export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string
     return {
       id: video.id, headline: video.title.replace(/\s*#[\w]+/g, "").trim() || video.title,
       summary: evidence.summary.conciseSummary,
-      details: evidence.summary.keyClaims.slice(0, 3), topic: source.layer,
+      kind: contentKind(video), details: evidence.summary.keyClaims.slice(0, 3), topic: source.layer,
       evidence: evidence.basis, novelty, contentHash: hash,
-      score: (evidence.basis === "transcript" ? 100 : 0) + (novelty !== "seen" ? 30 : 0) + Math.min(100, evidence.summary.relevanceScoreForJason) + preference + interestBoost - sourcePenalty,
-      sources: [{ id: video.id, channelId: source.id, name: source.displayName.split("/")[0].trim(), url: video.url, publishedAt: video.publishedAt.toISOString(), thumbnailUrl: video.thumbnailUrl, contentHash: hash }],
+      score: (evidence.basis !== "metadata" ? 100 : 0) + (novelty !== "seen" ? 30 : 0) + Math.min(100, evidence.summary.relevanceScoreForJason) + preference + interestBoost - sourcePenalty + (coreTopics.includes(source.layer) ? 12 : 0),
+      sources: [{ kind: contentKind(video), id: video.id, channelId: source.id, name: source.displayName.split("/")[0].trim(), url: video.url, publishedAt: video.publishedAt.toISOString(), thumbnailUrl: video.thumbnailUrl, contentHash: hash }],
     };
   });
   candidates.sort((a, b) => b.score - a.score || b.sources[0].publishedAt.localeCompare(a.sources[0].publishedAt));
@@ -67,14 +69,14 @@ export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string
       if (existing.novelty === "seen" || candidate.novelty === "seen") existing.novelty = "seen";
     } else stories.push(candidate);
   }
-  const eligible = stories.filter(story => story.evidence === "transcript" && story.novelty !== "seen" && !story.sources.some(source => reader?.states[source.id]?.read || reader?.states[source.id]?.less));
+  const eligible = stories.filter(story => story.evidence !== "metadata" && story.novelty !== "seen" && !story.sources.some(source => reader?.states[source.id]?.read || reader?.states[source.id]?.less));
   // Start with one strong story per topic, then fill remaining slots by rank.
   const selected: Story[] = [];
-  for (const story of eligible) if (!selected.some(item => item.topic === story.topic)) selected.push(story);
+  for (const story of eligible) if (selected.length < (reader?.preferences.briefLength ?? 5) && !selected.some(item => item.topic === story.topic)) selected.push(story);
   for (const story of eligible) if (selected.length < (reader?.preferences.briefLength ?? 5) && !selected.includes(story)) selected.push(story);
   selected.sort((a, b) => b.score - a.score);
   const status = sourceError ? "source_error" : selected.length ? "ready" : stories.some(s => s.evidence === "metadata" && s.novelty !== "seen") ? "limited" : "quiet";
-  const message = status === "source_error" ? "Source checks are incomplete. The feed may be missing updates." : status === "ready" ? `${selected.length} new or updated ${selected.length === 1 ? "story" : "stories"} worth a look.` : status === "limited" ? "New videos to explore. Transcript summaries are not available yet." : "You're caught up. No new transcript-backed stories today.";
+  const message = status === "source_error" ? "Source checks are incomplete. The feed may be missing updates." : status === "ready" ? `${selected.length} new or updated ${selected.length === 1 ? "story" : "stories"} worth a look.` : status === "limited" ? "New sources to explore. Text summaries are not available yet." : "You're caught up. No new source-backed stories today.";
   return { version: 2, status, stories, briefStoryIds: selected.map(story => story.id), message };
 }
 

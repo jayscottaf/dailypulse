@@ -33,8 +33,8 @@ export function SourceCard({ source, layers }: { source: Source; layers: [string
             title={source.isActive ? "Active" : "Inactive"}
           />
           <span className="truncate font-semibold">{source.displayName}</span>
-          <Badge variant={source.youtubeChannelId ? "secondary" : "outline"}>
-            {source.youtubeChannelId ? "RSS ready" : "Missing channel ID"}
+          <Badge variant={(source.youtubeChannelId || source.rssUrl) ? "secondary" : "outline"}>
+            {(source.youtubeChannelId || source.rssUrl) ? "RSS ready" : "Missing feed"}
           </Badge>
           <Badge variant="muted">{layers.find(([key]) => key === source.layer)?.[1] ?? source.layer}</Badge>
         </div>

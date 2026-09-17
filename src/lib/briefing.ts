@@ -75,8 +75,9 @@ export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string
   for (const story of eligible) if (selected.length < (reader?.preferences.briefLength ?? 5) && !selected.some(item => item.topic === story.topic)) selected.push(story);
   for (const story of eligible) if (selected.length < (reader?.preferences.briefLength ?? 5) && !selected.includes(story)) selected.push(story);
   selected.sort((a, b) => b.score - a.score);
-  const status = sourceError ? "source_error" : selected.length ? "ready" : stories.some(s => s.evidence === "metadata" && s.novelty !== "seen") ? "limited" : "quiet";
-  const message = status === "source_error" ? "Source checks are incomplete. The feed may be missing updates." : status === "ready" ? `${selected.length} new or updated ${selected.length === 1 ? "story" : "stories"} worth a look.` : status === "limited" ? "New sources to explore. Text summaries are not available yet." : "You're caught up. No new source-backed stories today.";
+  const status = selected.length ? "ready" : sourceError ? "source_error" : stories.some(s => s.evidence === "metadata" && s.novelty !== "seen") ? "limited" : "quiet";
+  const baseMessage = status === "source_error" ? "Source checks are incomplete. The feed may be missing updates." : status === "ready" ? `${selected.length} new or updated ${selected.length === 1 ? "story" : "stories"} worth a look.` : status === "limited" ? "New sources to explore. Text summaries are not available yet." : "You're caught up. No new source-backed stories today.";
+  const message = baseMessage + (sourceError && selected.length ? " Some source checks are incomplete; this briefing may be missing updates." : "");
   return { version: 2, status, stories, briefStoryIds: selected.map(story => story.id), message };
 }
 

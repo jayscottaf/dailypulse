@@ -12,6 +12,17 @@ import { isAdminSession } from "@/lib/page-auth";
 import { resolveRssUrl } from "@/lib/source-roster";
 import { lookupChannelIdByHandle } from "@/lib/youtube-api";
 import { runAction, type ActionResult } from "@/lib/action-result";
+import { installSources } from "@/lib/install-sources";
+
+export async function installSourcesAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  return runAction("Add sources", async () => {
+    await assertAdmin();
+    const added = await installSources(formData.getAll("sourceKeys").map(String));
+    revalidatePath("/sources");
+    revalidatePath("/settings");
+    return `${added} sources added. Their topics are enabled. New stories will appear after the next collection and briefing update.`;
+  });
+}
 
 async function assertAdmin() {
   if (!(await isAdminSession())) throw new Error("Unauthorized.");

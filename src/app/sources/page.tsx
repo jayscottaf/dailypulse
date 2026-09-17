@@ -6,6 +6,7 @@ import { isAdminSession } from "@/lib/page-auth";
 import { LAYERS } from "@/lib/source-roster";
 import { AddSourceCard } from "./add-source-card";
 import { SourceCard } from "./source-card";
+import { SourceLibrary } from "./source-library";
 
 export default async function SourcesPage() {
   if (!(await isAdminSession())) return <AdminLogin />;
@@ -29,6 +30,7 @@ export default async function SourcesPage() {
             </p>
           </section>
 
+          <SourceLibrary installedUrls={sources.flatMap(source => source.rssUrl ? [source.rssUrl] : [])} />
           <AddSourceCard layers={layers} />
 
           <div className="grid gap-3">

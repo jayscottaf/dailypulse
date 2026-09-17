@@ -1,4 +1,5 @@
 import { fetchArticleFeed, enrichArticle } from "@/lib/article-feeds";
+import { coreTopics } from "@/lib/topics";
 import { sourceKind } from "@/lib/content-kind";
 import { hasSourceText } from "@/lib/evidence";
 import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
@@ -160,7 +161,11 @@ export async function summarizeUnsummarizedRecentVideos(force = false, limit = 8
     if (seen.has(row.source.id)) return false;
     seen.add(row.source.id); return true;
   });
-  const candidates = [...first, ...pending.filter(row => !first.includes(row))].slice(0, Math.min(limit, 8));
+  const core = coreTopics.flatMap(topic => {
+    const row = first.find(row => row.source.layer === topic);
+    return row ? [row] : [];
+  });
+  const candidates = [...core, ...first.filter(row => !core.includes(row)), ...pending.filter(row => !first.includes(row))].slice(0, Math.min(limit, 8));
   const summarized: string[] = [];
   await Promise.all(candidates.map(async row => {
     try {

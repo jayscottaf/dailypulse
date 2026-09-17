@@ -1,4 +1,4 @@
-import { contentKind } from "@/lib/content-kind";
+import { contentKind, originalSourceUrl } from "@/lib/content-kind";
 import { coreTopics } from "@/lib/topics";
 import type { ReaderContext } from "@/lib/reader-preferences";
 import type { FeedbackProfile } from "@/lib/feedback";
@@ -56,7 +56,7 @@ export function buildBriefing(rows: ReportInputVideo[], covered = new Map<string
       kind: contentKind(video), details: evidence.summary.keyClaims.slice(0, 3), topic: source.layer,
       evidence: evidence.basis, novelty, contentHash: hash,
       score: (evidence.basis !== "metadata" ? 100 : 0) + (novelty !== "seen" ? 30 : 0) + Math.min(100, evidence.summary.relevanceScoreForJason) + preference + interestBoost - sourcePenalty + (coreTopics.includes(source.layer) ? 12 : 0),
-      sources: [{ kind: contentKind(video), id: video.id, channelId: source.id, name: source.displayName.split("/")[0].trim(), url: video.url, publishedAt: video.publishedAt.toISOString(), thumbnailUrl: video.thumbnailUrl, contentHash: hash }],
+      sources: [{ kind: contentKind(video), id: video.id, channelId: source.id, name: source.displayName.split("/")[0].trim(), url: originalSourceUrl(video), publishedAt: video.publishedAt.toISOString(), thumbnailUrl: video.thumbnailUrl, contentHash: hash }],
     };
   });
   candidates.sort((a, b) => b.score - a.score || b.sources[0].publishedAt.localeCompare(a.sources[0].publishedAt));

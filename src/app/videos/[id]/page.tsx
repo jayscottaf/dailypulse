@@ -1,4 +1,4 @@
-import { contentKind } from "@/lib/content-kind";
+import { contentKind, originalSourceUrl } from "@/lib/content-kind";
 import { eq } from "drizzle-orm";
 import { readerContext } from "@/lib/reader-store";
 import { StoryControls } from "@/components/app/story-controls";
@@ -76,7 +76,7 @@ export default async function VideoPage({ params }: { params: Promise<{ id: stri
               {row.source.displayName} - {row.video.publishedAt.toLocaleString()}
             </p>
             <Button asChild className="mt-4" variant="outline">
-              <a href={row.video.url} target="_blank" rel="noreferrer"><ExternalLink /> {kind === "video" ? "Open video" : kind === "forum" ? "Open discussion" : "Read article"}</a>
+              <a href={originalSourceUrl(row.video)} target="_blank" rel="noreferrer"><ExternalLink /> {kind === "video" ? "Open video" : kind === "forum" ? "Open discussion" : "Read article"}</a>
             </Button>
           </section>
 

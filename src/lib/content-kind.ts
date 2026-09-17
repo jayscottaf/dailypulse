@@ -11,3 +11,13 @@ export function contentKind(video: Pick<Video, "rawMetadata">): "video" | "artic
   return video.rawMetadata.contentKind === "article" ? "article" : video.rawMetadata.contentKind === "forum" ? "forum" : "video";
 }
 export const EVIDENCE_LABELS = { transcript: "From transcript", article: "From article excerpt", forum: "From forum post", metadata: "Title-only preview" } as const;
+
+export function originalSourceUrl(video: Pick<Video, "rawMetadata" | "url">) {
+  if (contentKind(video) === "forum" && typeof video.rawMetadata.discussionUrl === "string") {
+    try {
+      const discussion = new URL(video.rawMetadata.discussionUrl);
+      if (discussion.protocol === "https:") return discussion.href;
+    } catch { /* Use the feed's original link when there is no valid discussion URL. */ }
+  }
+  return video.url;
+}

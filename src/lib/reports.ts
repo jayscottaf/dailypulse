@@ -1,4 +1,6 @@
-import { asc, desc, eq, gt, lt } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { priorCoverage } from "@/lib/briefing";
+import { and, asc, desc, eq, gt, gte, lt } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { dailyReports, reportVideos, videos } from "@/db/schema";
 import { generateDailyReportMarkdown } from "@/lib/ai";
@@ -9,11 +11,14 @@ import { createReportSlug, todayIso } from "@/lib/slug";
 
 export async function generateDailyReport(reportDate = todayIso()) {
   const db = getDb();
-  const reportInput = await videosForReport(72);
+  const reportInput = await videosForReport(72, reportDate);
+  const since = new Date(`${reportDate}T00:00:00Z`);
+  since.setUTCDate(since.getUTCDate() - 14);
+  const previous = await db.select().from(dailyReports).where(and(lt(dailyReports.date, reportDate), gte(dailyReports.date, since.toISOString().slice(0, 10)))).orderBy(desc(dailyReports.date));
   const feedbackProfile = await buildFeedbackProfile();
 
   try {
-    const generated = await generateDailyReportMarkdown(reportDate, reportInput, feedbackProfile);
+    const generated = await generateDailyReportMarkdown(reportDate, reportInput, feedbackProfile, priorCoverage(previous));
     const slug = createReportSlug(reportDate);
     const sourceVideoIds = reportInput.map((row) => row.video.id);
 
@@ -54,6 +59,9 @@ export async function generateDailyReport(reportDate = todayIso()) {
       );
     }
 
+    revalidatePath("/");
+    revalidatePath(`/daily-pulse/${slug}`);
+    revalidatePath("/archive");
     return report;
   } catch (error) {
     await logError("OpenAI generation", error, { reportDate, videoCount: reportInput.length });

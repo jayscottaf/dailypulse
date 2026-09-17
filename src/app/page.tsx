@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app/app-shell";
@@ -8,6 +9,7 @@ import type { DailyReport } from "@/db/schema";
 import { latestReport } from "@/lib/reports";
 
 export default async function HomePage() {
+  await connection();
   let report: DailyReport | null = null;
   try {
     report = await latestReport();

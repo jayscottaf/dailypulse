@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { ingestionRuns, sources, videoSummaries, videos } from "@/db/schema";
 import { summarizeVideo } from "@/lib/ai";
@@ -179,17 +179,17 @@ export async function summarizeUnsummarizedRecentVideos(force = false, limit = 8
   return summarized;
 }
 
-export async function videosForReport(hours = 72) {
+export async function videosForReport(hours = 72, reportDate?: string) {
   const db = getDb();
-  const since = new Date();
-  since.setHours(since.getHours() - hours);
+  const until = reportDate ? new Date(Math.min(Date.now(), new Date(`${reportDate}T23:59:59.999Z`).getTime())) : new Date();
+  const since = new Date(until.getTime() - hours * 60 * 60 * 1000);
 
   const rows = await db
     .select({ video: videos, source: sources, summary: videoSummaries })
     .from(videos)
     .innerJoin(sources, eq(videos.sourceId, sources.id))
     .innerJoin(videoSummaries, eq(videoSummaries.videoId, videos.id))
-    .where(and(gte(videos.publishedAt, since), inArray(sources.layer, ["macro_financial", "deep_tech_ai", "tesla_ownership"])))
+    .where(and(eq(sources.isActive, true), gte(videos.publishedAt, since), lte(videos.publishedAt, until), inArray(sources.layer, ["macro_financial", "deep_tech_ai", "tesla_ownership"])))
     .orderBy(desc(videos.publishedAt));
 
   return rows;
